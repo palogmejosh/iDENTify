@@ -38,6 +38,23 @@
                 </a>
             </li>
             <li>
+                <a href="ci_procedure_assignments.php" class="sidebar-link flex items-center px-4 py-2 text-gray-900 dark:text-white rounded-md hover:bg-violet-100 dark:hover:bg-gray-800 <?php echo (basename($_SERVER['PHP_SELF']) == 'ci_procedure_assignments.php') ? 'sidebar-active bg-gradient-to-r from-violet-100 to-purple-100 dark:bg-gray-800 border-l-4 border-violet-500' : ''; ?>">
+                    <i class="ri-file-list-3-line mr-3"></i>Procedure Assignments
+                    <?php 
+                    if (function_exists('getCIPendingProcedureAssignments')) {
+                        $procedureAssignments = getCIPendingProcedureAssignments($user['id'] ?? '');
+                        if (!empty($procedureAssignments)): 
+                    ?>
+                        <span class="ml-auto bg-purple-500 text-white text-xs rounded-full px-2 py-1">
+                            <?php echo count($procedureAssignments); ?>
+                        </span>
+                    <?php 
+                        endif;
+                    }
+                    ?>
+                </a>
+            </li>
+            <li>
                 <a href="ci_patient_transfers.php" class="sidebar-link flex items-center px-4 py-2 text-gray-900 dark:text-white rounded-md hover:bg-violet-100 dark:hover:bg-gray-800 <?php echo (basename($_SERVER['PHP_SELF']) == 'ci_patient_transfers.php') ? 'sidebar-active bg-gradient-to-r from-violet-100 to-purple-100 dark:bg-gray-800 border-l-4 border-violet-500' : ''; ?>">
                     <i class="ri-exchange-line mr-3"></i>Patient Transfers
                     <?php 

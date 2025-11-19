@@ -11,7 +11,6 @@ if (!$patientId) die('Invalid patient ID');
 
 // Role-based access control
 if ($role === 'Clinical Instructor') {
-    // Clinical Instructors can only access patients assigned to them
     $accessCheck = $pdo->prepare(
         "SELECT pa.id FROM patient_assignments pa 
          WHERE pa.patient_id = ? 
@@ -20,22 +19,70 @@ if ($role === 'Clinical Instructor') {
     );
     $accessCheck->execute([$patientId, $userId]);
     if (!$accessCheck->fetch()) {
-        // No access - redirect to patients page
         header('Location: patients.php');
         exit;
     }
 } elseif (!in_array($role, ['Admin', 'Clinician', 'COD'])) {
-    // Other roles don't have access
     header('Location: patients.php');
     exit;
 }
 
 /* ---------- Fetch existing progress notes ---------- */
-$stmt = $pdo->prepare("SELECT * FROM progress_notes WHERE patient_id = ? ORDER BY id");
+$stmt = $pdo->prepare("SELECT * FROM progress_notes WHERE patient_id = ? ORDER BY id ASC");
 $stmt->execute([$patientId]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Map procedure_log_id => treatment plan text from procedure_logs
+$tpMap = [];
+$logIds = array_filter(array_unique(array_map(function($r){ return $r['procedure_log_id'] ?? null; }, $rows)));
+if (!empty($logIds)) {
+    foreach ($logIds as $logId) {
+        $singleStmt = $pdo->prepare("SELECT id, procedure_selected FROM procedure_logs WHERE id = ?");
+        $singleStmt->execute([$logId]);
+        $logData = $singleStmt->fetch(PDO::FETCH_ASSOC);
+        if ($logData) {
+            $tpMap[$logData['id']] = $logData['procedure_selected'];
+        }
+    }
+}
+
+// Mark auto-generated notes and attach treatment plan text
+foreach ($rows as &$row) {
+    $row['treatment_plan'] = '';
+    if (!empty($row['procedure_log_id']) && isset($tpMap[$row['procedure_log_id']])) {
+        $row['treatment_plan'] = $tpMap[$row['procedure_log_id']];
+    }
+
+    if (!empty($row['auto_generated']) && (int)$row['auto_generated'] === 1) {
+        $prefix = '[AUTO] ';
+        if (strpos((string)$row['progress'], 'Procedure Logged:') !== false) {
+            if (strpos((string)$row['progress'], '[AUTO]') === false) {
+                $row['progress'] = $prefix . $row['progress'];
+            }
+        } else {
+            $row['progress'] = $prefix . 'Procedure Logged: ' . ($row['progress'] ?? '');
+        }
+        $row['is_auto_generated'] = true;
+    } else {
+        $row['is_auto_generated'] = false;
+    }
+}
+
 // Provide a default empty row if no notes exist
-if (!$rows) $rows = [['id'=>null,'date'=>'','tooth'=>'','progress'=>'','clinician'=>'','ci'=>'','remarks'=>'','patient_signature'=>'']];
+if (!$rows) {
+    $rows = [[
+        'id' => null,
+        'date' => '',
+        'tooth' => '',
+        'progress' => '',
+        'clinician' => '',
+        'ci' => '',
+        'remarks' => '',
+        'patient_signature' => '',
+        'treatment_plan' => '',
+        'is_auto_generated' => false
+    ]];
+}
 
 /* ---------- Fetch patient header info ---------- */
 $pt = $pdo->prepare("SELECT last_name, first_name, middle_initial, age, gender FROM patients WHERE id = ?");
@@ -60,7 +107,7 @@ $currentUserName = $currentUser['full_name'] ?? '';
   <title>Step 5 – Progress Notes</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link rel="stylesheet" href="dark-mode-override.css">
+  <link rel="stylesheet" href="dark-mode-override.css">
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
   <style>
     .rounded-button { border-radius: 20px; }
@@ -93,10 +140,10 @@ $currentUserName = $currentUser['full_name'] ?? '';
       <h1 class="text-xl font-semibold text-gray-800">Step 5 – Progress Notes</h1>
     </div>
     <div class="flex space-x-3">
-    <button id="generateReportBtn" class="bg-primary text-black px-4 py-2 rounded-button hover:bg-primary/90"
-        onclick="window.openPrintModal();">
-  Generate Report
-</button>
+      <button id="generateReportBtn" class="bg-primary text-black px-4 py-2 rounded-button hover:bg-primary/90"
+        onclick="window.open('print_selection.php?id=<?= $patientId ?>', '_blank', 'width=1100,height=700');">
+        Generate Report
+      </button>
       <button id="savePatientInfoBtn" type="submit" form="step5Form" class="bg-primary text-black px-4 py-2 rounded-button whitespace-nowrap">Save Record</button>
     </div>
   </div>
@@ -155,12 +202,23 @@ $currentUserName = $currentUser['full_name'] ?? '';
           <tbody>
             <?php foreach ($rows as $row): ?>
             <tr>
-              <td class="border px-2 py-1"><input type="date"   name="date[]"    value="<?= htmlspecialchars($row['date'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
-              <td class="border px-2 py-1"><input type="text"   name="tooth[]"   value="<?= htmlspecialchars($row['tooth'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
-              <td class="border px-2 py-1"><input type="text"   name="progress[]"value="<?= htmlspecialchars($row['progress'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
-              <td class="border px-2 py-1"><input type="text"   name="clinician[]" readonly value="<?= htmlspecialchars($currentUserName ?: ($row['clinician'] ?? '')) ?>" class="w-full bg-gray-100 border-0 focus:ring-0 text-xs"></td>
-              <td class="border px-2 py-1"><input type="text"   name="ci[]"      value="<?= htmlspecialchars($row['ci'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
-              <td class="border px-2 py-1"><input type="text"   name="remarks[]" value="<?= htmlspecialchars($row['remarks'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
+              <input type="hidden" name="id[]" value="<?= htmlspecialchars($row['id'] ?? '') ?>">
+              <td class="border px-2 py-1"><input type="date" name="date[]" value="<?= htmlspecialchars($row['date'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
+              <td class="border px-2 py-1"><input type="text" name="tooth[]" value="<?= htmlspecialchars($row['tooth'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
+              <td class="border px-2 py-1">
+                <div class="flex items-center gap-1">
+                  <input type="text" name="progress[]" value="<?= htmlspecialchars($row['progress'] ?? '') ?>" class="flex-1 bg-transparent border-0 focus:ring-0 text-xs">
+                  <?php if (!empty($row['treatment_plan'])): ?>
+                    <span title="Treatment Plan" class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800">TP</span>
+                  <?php endif; ?>
+                  <?php if (!empty($row['is_auto_generated'])): ?>
+                    <span title="Auto-generated from procedure log" class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-200 text-gray-700">AUTO</span>
+                  <?php endif; ?>
+                </div>
+              </td>
+              <td class="border px-2 py-1"><input type="text" name="clinician[]" readonly value="<?= htmlspecialchars($currentUserName ?: ($row['clinician'] ?? '')) ?>" class="w-full bg-gray-100 border-0 focus:ring-0 text-xs"></td>
+              <td class="border px-2 py-1"><input type="text" name="ci[]" value="<?= htmlspecialchars($row['ci'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
+              <td class="border px-2 py-1"><input type="text" name="remarks[]" value="<?= htmlspecialchars($row['remarks'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
               <td class="border px-2 py-1"><button type="button" onclick="delRow(this)" class="text-red-600 hover:text-red-800 text-xs">✕</button></td>
             </tr>
             <?php endforeach; ?>
@@ -172,7 +230,7 @@ $currentUserName = $currentUser['full_name'] ?? '';
         <button type="button" onclick="addRow()" class="bg-blue-600 text-white px-4 py-2 rounded-button text-xs">Add Row</button>
       </div>
 
-      <!-- Signature Section (Updated) -->
+      <!-- Signature Section -->
       <div class="mt-6 flex flex-col gap-2 text-xs">
         <label>Patient's name and signature</label>
         <div class="w-full max-w-[350px]">
@@ -197,20 +255,12 @@ $currentUserName = $currentUser['full_name'] ?? '';
 </div>
 
 <script>
-  // Loads the modal when the button is clicked
-  function openPrintModal() {
-    const pid = "<?= $patientId ?>";
-    window.open('print_selection.php?id='+pid, '_blank', 'width=1100,height=700');
-  }
-  document.getElementById('generateReportBtn').addEventListener('click', openPrintModal);
-</script>
-
-<script>
 // --- Table Row Management ---
 function addRow() {
   const tbody = document.querySelector('#notesTable tbody');
   const tr = document.createElement('tr');
   tr.innerHTML = `
+    <input type="hidden" name="id[]" value="">
     <td class="border px-2 py-1"><input type="date" name="date[]" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
     <td class="border px-2 py-1"><input type="text" name="tooth[]" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
     <td class="border px-2 py-1"><input type="text" name="progress[]" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
@@ -256,6 +306,12 @@ window.addEventListener('resize', () => {
 // --- Form Submission ---
 document.getElementById('step5Form').addEventListener('submit', async e => {
   e.preventDefault();
+  
+  // Disable submit button to prevent double submission
+  const submitBtn = document.getElementById('savePatientInfoBtn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin mr-1"></i>Saving...';
+  
   const fd = new FormData(e.target);
 
   // Add signature data to FormData if a new one was drawn
@@ -265,6 +321,7 @@ document.getElementById('step5Form').addEventListener('submit', async e => {
   
   // Create JSON from the table rows
   const rows = [];
+  const ids = fd.getAll('id[]');
   const dates = fd.getAll('date[]');
   const teeth = fd.getAll('tooth[]');
   const progress = fd.getAll('progress[]');
@@ -272,8 +329,19 @@ document.getElementById('step5Form').addEventListener('submit', async e => {
   const cis = fd.getAll('ci[]');
   const remarks = fd.getAll('remarks[]');
   
+  console.log('Form data:', {
+    ids: ids,
+    dates: dates,
+    teeth: teeth,
+    progress: progress,
+    clinicians: clinicians,
+    cis: cis,
+    remarks: remarks
+  });
+  
   for (let i = 0; i < dates.length; i++) {
     rows.push({
+      id: ids[i] || null,
       date: dates[i],
       tooth: teeth[i],
       progress: progress[i],
@@ -282,20 +350,30 @@ document.getElementById('step5Form').addEventListener('submit', async e => {
       remarks: remarks[i],
     });
   }
+  
+  console.log('Rows to save:', rows);
   fd.append('notes_json', JSON.stringify(rows));
 
   try {
     const res = await fetch('save_step5.php', {method: 'POST', body: fd});
     const msg = await res.text();
-    if (res.ok) {
-        alert('Progress notes saved.');
+    
+    console.log('Server response:', msg);
+    console.log('Response status:', res.status);
+    
+    if (res.ok && msg.trim() === 'OK') {
+        alert('Progress notes saved successfully!');
         location.href = 'patients.php';
     } else {
-        alert('Error: ' + msg);
+        alert('Error saving progress notes: ' + msg);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Save Record';
     }
   } catch (error) {
       alert('A network error occurred. Please try again.');
       console.error('Save error:', error);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Save Record';
   }
 });
 </script>

@@ -65,11 +65,50 @@ $dateTo = $_GET['date_to'] ?? '';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $itemsPerPage = 6;
 
-// Get procedure logs for COD
-$codProceduresResult = getCODProcedureAssignments($search, $assignmentStatusFilter, $dateFrom, $dateTo, $page, $itemsPerPage);
+// Get procedure logs for COD (correct argument order: search, dateFrom, dateTo, assignmentStatus, page, itemsPerPage)
+$codProceduresResult = getCODProcedureAssignments($search, $dateFrom, $dateTo, $assignmentStatusFilter, $page, $itemsPerPage);
 $codProcedures = $codProceduresResult['procedures'];
 $totalItems = $codProceduresResult['total'];
 $totalPages = ceil($totalItems / $itemsPerPage);
+
+// Perform automatic assignment for procedures that are not yet assigned
+foreach ($codProcedures as &$procedure) {
+    // Check if procedure is unassigned or pending rejection
+    $assignmentStatus = $procedure['assignment_status'] ?? 'unassigned';
+    if (empty($procedure['assigned_clinical_instructor']) || $assignmentStatus === 'unassigned' || $assignmentStatus === 'pending' || $assignmentStatus === 'rejected') {
+        // Check if we haven't already assigned this procedure
+        $checkAssignment = $pdo->prepare("SELECT id FROM procedure_assignments WHERE procedure_log_id = ? AND assignment_status = 'pending'");
+        $checkAssignment->execute([$procedure['procedure_log_id']]);
+        
+        if (!$checkAssignment->fetch()) {
+            // Auto-assign the procedure to the best available CI
+            $procedureDetails = $procedure['procedure_details'] ?? '';
+            $autoAssignResult = autoAssignProcedureToBestCI($procedure['procedure_log_id'], $user['id'], $procedureDetails, 'Auto-assigned via COD interface');
+            
+            if ($autoAssignResult['success']) {
+                // Get the updated assignment data with timestamp
+                $getUpdatedAssignment = $pdo->prepare("
+                    SELECT pra.assigned_at, pra.notes as assignment_notes, u_ci.full_name as assigned_clinical_instructor
+                    FROM procedure_assignments pra
+                    LEFT JOIN users u_ci ON pra.clinical_instructor_id = u_ci.id
+                    WHERE pra.procedure_log_id = ?
+                ");
+                $getUpdatedAssignment->execute([$procedure['procedure_log_id']]);
+                $updatedAssignment = $getUpdatedAssignment->fetch();
+                
+                if ($updatedAssignment) {
+                    // Update the procedure data to reflect the auto-assignment
+                    $procedure['assigned_clinical_instructor'] = $updatedAssignment['assigned_clinical_instructor'];
+                    $procedure['assignment_status'] = 'pending';
+                    $procedure['assigned_at'] = $updatedAssignment['assigned_at'];
+                    $procedure['assignment_notes'] = $updatedAssignment['assignment_notes'];
+                }
+            }
+        }
+    }
+}
+// Unset reference to avoid issues with subsequent loops
+unset($procedure);
 
 // Get Clinical Instructors for assignment dropdown
 $clinicalInstructors = getAllClinicalInstructorsWithCounts();
@@ -332,23 +371,39 @@ $profilePicture = $user['profile_picture'] ?? null;
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
-                                    <?php echo htmlspecialchars($procedure['assigned_clinical_instructor'] ?? 'Not Assigned'); ?>
+                                    <?php echo htmlspecialchars($procedure['assigned_clinical_instructor'] ?? 'Auto-assigning...'); ?>
+                                    <?php if (!empty($procedure['assigned_at'])): ?>
+                                        <div class="text-xs text-gray-500">
+                                            <i class="ri-time-line mr-1"></i><?php echo date('M d, Y H:i', strtotime($procedure['assigned_at'])); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($procedure['assignment_notes']) && strpos($procedure['assignment_notes'], 'Auto-assigned') !== false): ?>
+                                        <div class="text-xs text-blue-600 dark:text-blue-400">
+                                            <i class="ri-magic-line mr-1"></i>Auto-assigned
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div class="flex space-x-2">
-                                        <?php if (empty($procedure['assignment_status']) || $procedure['assignment_status'] === 'pending' || $procedure['assignment_status'] === 'rejected'): ?>
-                                            <button onclick="openAssignModal(<?php echo htmlspecialchars(json_encode($procedure)); ?>)" 
-                                                    class="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white px-3 py-1 rounded-md text-xs shadow-lg transition-all duration-200">
-                                                <i class="ri-user-add-line mr-1"></i>Manual Assign
-                                            </button>
-                                            <button onclick="autoAssignProcedure(<?php echo $procedure['id']; ?>, '<?php echo htmlspecialchars($procedure['procedure_details'] ?? '', ENT_QUOTES); ?>')" 
-                                                    class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-3 py-1 rounded-md text-xs shadow-lg transition-all duration-200">
-                                                <i class="ri-magic-line mr-1"></i>Auto Assign
-                                            </button>
-                                        <?php else: ?>
-                                            <span class="text-gray-400 text-xs">Already Assigned</span>
-                                        <?php endif; ?>
-                                    </div>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <?php 
+                                    $assignmentStatus = $procedure['assignment_status'] ?? 'unassigned';
+                                    if ($assignmentStatus === 'unassigned' || empty($procedure['assigned_clinical_instructor'])): 
+                                    ?>
+                                        <button onclick="openAssignModal(<?php echo htmlspecialchars(json_encode($procedure)); ?>)" 
+                                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-medium rounded-md transition-all duration-200 shadow-md hover:shadow-lg" 
+                                                title="Manually assign this procedure to a Clinical Instructor">
+                                            <i class="ri-user-add-line mr-1"></i>Assign
+                                        </button>
+                                    <?php elseif ($assignmentStatus === 'pending' || $assignmentStatus === 'accepted'): ?>
+                                        <button onclick="openAssignModal(<?php echo htmlspecialchars(json_encode($procedure)); ?>)" 
+                                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-medium rounded-md transition-all duration-200 shadow-md hover:shadow-lg" 
+                                                title="Reassign this procedure to a different Clinical Instructor">
+                                            <i class="ri-refresh-line mr-1"></i>Reassign
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-md">
+                                            <i class="ri-check-line mr-1"></i>Completed
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -482,15 +537,16 @@ $profilePicture = $user['profile_picture'] ?? null;
     setTimeout(hideAlert, 5000);
 
     // Modal Functions
-    function openAssignModal(procedure) {
-        document.getElementById('procedureLogId').value = procedure.id;
+function openAssignModal(procedure) {
+        // Use correct key from API: procedure_log_id
+        document.getElementById('procedureLogId').value = procedure.procedure_log_id || procedure.id;
         document.getElementById('procedureDetails').innerHTML = `
             <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Procedure Information:</h4>
             <div class="grid grid-cols-2 gap-3 text-sm">
                 <div><strong class="text-gray-700 dark:text-gray-300">Patient:</strong><br>${escapeHtml(procedure.patient_name)}</div>
                 <div><strong class="text-gray-700 dark:text-gray-300">Clinician:</strong><br>${escapeHtml(procedure.clinician_name)}</div>
                 <div class="col-span-2"><strong class="text-gray-700 dark:text-gray-300">Procedure:</strong><br>${escapeHtml(procedure.procedure_selected)}</div>
-                ${procedure.procedure_details ? `<div class="col-span-2"><strong class="text-gray-700 dark:text-gray-300">Details:</strong><br>${escapeHtml(procedure.procedure_details)}</div>` : ''}
+                ${procedure.procedure_details ? `<div class=\"col-span-2\"><strong class=\"text-gray-700 dark:text-gray-300\">Details:</strong><br>${escapeHtml(procedure.procedure_details)}</div>` : ''}
             </div>
         `;
         
@@ -502,21 +558,6 @@ $profilePicture = $user['profile_picture'] ?? null;
         document.getElementById('assignmentForm').reset();
     }
 
-    function autoAssignProcedure(procedureLogId, procedureDetails) {
-        if (!confirm('This will automatically assign the procedure to the most suitable Clinical Instructor. Continue?')) {
-            return;
-        }
-
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.innerHTML = `
-            <input type="hidden" name="action" value="auto_assign">
-            <input type="hidden" name="procedure_log_id" value="${procedureLogId}">
-            <input type="hidden" name="procedure_details" value="${escapeHtml(procedureDetails)}">
-        `;
-        document.body.appendChild(form);
-        form.submit();
-    }
 
     function escapeHtml(unsafe) {
         if (!unsafe) return '';

@@ -40,8 +40,12 @@ switch ($action) {
         handleAddCIToPool();
         break;
     
-    case 'auto_assign':
+case 'auto_assign':
         handleAutoAssign();
+        break;
+    
+    case 'auto_assign_procedure':
+        handleAutoAssignProcedure();
         break;
     
     default:
@@ -108,8 +112,7 @@ function handleAddCIToPool() {
 // Auto assign patient
 function handleAutoAssign() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        http_response_code(405);        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
         return;
     }
     
@@ -132,6 +135,35 @@ function handleAutoAssign() {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Failed to auto assign patient: ' . $e->getMessage()]);
     }
+}
+
+// Auto assign procedure
+function handleAutoAssignProcedure() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    global $user;
+    
+    $procedureLogId = (int) $_POST['procedure_log_id'] ?? 0;
+    $notes = $_POST['notes'] ?? '';
+    $procedureDetails = $_POST['procedure_details'] ?? '';
+    
+    if (!$procedureLogId) {        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Procedure log ID is required.']);
+        return;
+    }
+    
+    try {
+        $result = autoAssignProcedureToBestCI($procedureLogId, $user['id'], $procedureDetails, $notes);
+        echo json_encode($result);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to auto assign procedure: ' . $e->getMessage()]);
+    }
+}
 }
 
 ?>

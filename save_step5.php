@@ -2,11 +2,15 @@
 require_once 'config.php';
 requireAuth();
 
-$user = getCurrentUser();
-$role = $user['role'] ?? '';
-$userId = $user['id'] ?? 0;
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-$patientId = (int)($_POST['patient_id'] ?? 0);
+$user = getCurrentUser();
+$role = isset($user['role']) ? $user['role'] : '';
+$userId = isset($user['id']) ? $user['id'] : 0;
+
+$patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : 0;
 if (!$patientId) { 
     http_response_code(400); 
     exit('Missing patient ID'); 
@@ -14,19 +18,18 @@ if (!$patientId) {
 
 // Role-based access control
 if ($role === 'Clinical Instructor') {
-    // Clinical Instructors can only save data for patients assigned to them
     $accessCheck = $pdo->prepare(
         "SELECT pa.id FROM patient_assignments pa 
          WHERE pa.patient_id = ? 
          AND pa.clinical_instructor_id = ? 
          AND pa.assignment_status IN ('accepted', 'completed')"
     );
-    $accessCheck->execute([$patientId, $userId]);
+    $accessCheck->execute(array($patientId, $userId));
     if (!$accessCheck->fetch()) {
         http_response_code(403);
         exit('Access denied: You do not have permission to edit this patient.');
     }
-} elseif (!in_array($role, ['Admin', 'Clinician', 'COD'])) {
+} elseif (!in_array($role, array('Admin', 'Clinician', 'COD'))) {
     http_response_code(403);
     exit('Access denied: Insufficient permissions.');
 }
@@ -34,14 +37,15 @@ if ($role === 'Clinical Instructor') {
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 /* ---------- 1. Helper to save Base64 Signature ---------- */
-function saveBase64(string $base64Key, int $patientId): string
+function saveBase64($base64Key, $patientId)
 {
     if (empty($_POST[$base64Key])) {
         return '';
     }
     
     $raw = $_POST[$base64Key];
-    if (!str_starts_with($raw, 'data:image/png;base64,')) {
+    // Check if string starts with 'data:image/png;base64,'
+    if (strpos($raw, 'data:image/png;base64,') !== 0) {
         return '';
     }
 
@@ -58,7 +62,6 @@ function saveBase64(string $base64Key, int $patientId): string
         return '';
     }
 
-    // Use the consistent, shared filename for the data privacy signature
     $filename = $patientId . '_data_privacy_signature_path.png';
     $filepath = $folder . '/' . $filename;
     file_put_contents($filepath, $bin);
@@ -67,57 +70,108 @@ function saveBase64(string $base64Key, int $patientId): string
 }
 
 /* ---------- 2. Handle Shared Signature Synchronization ---------- */
-// Save the new signature if one was drawn on this form.
 $newSignaturePath = saveBase64('data_privacy_signature_path_base64', $patientId);
-// Decide which path to save: the new one, or the old one if no new one was drawn.
-$finalSignaturePath = $newSignaturePath ?: ($_POST['old_data_privacy_signature_path'] ?? '');
+$finalSignaturePath = $newSignaturePath;
+if (empty($finalSignaturePath)) {
+    $finalSignaturePath = isset($_POST['old_data_privacy_signature_path']) ? $_POST['old_data_privacy_signature_path'] : '';
+}
 
-// If there's a signature path, update the informed_consent table to sync it.
 if (!empty($finalSignaturePath)) {
     $consentSql = "INSERT INTO informed_consent (patient_id, data_privacy_signature_path) VALUES (?, ?)
                    ON DUPLICATE KEY UPDATE data_privacy_signature_path = VALUES(data_privacy_signature_path)";
     $consentStmt = $pdo->prepare($consentSql);
-    $consentStmt->execute([$patientId, $finalSignaturePath]);
+    $consentStmt->execute(array($patientId, $finalSignaturePath));
 }
 
 /* ---------- 3. Process and Save Progress Notes ---------- */
-$rows = json_decode($_POST['notes_json'] ?? '[]', true);
+$notesJson = isset($_POST['notes_json']) ? $_POST['notes_json'] : '[]';
+error_log("Processing progress notes JSON: " . $notesJson);
+
+$rows = json_decode($notesJson, true);
 if (!is_array($rows)) { 
     http_response_code(400); 
+    error_log("Invalid JSON data for progress notes: " . $notesJson);
     exit('Invalid JSON data for progress notes.'); 
 }
 
-// The printed name is now a single field for the entire form
-$printedName = $_POST['patient_signature'] ?? null;
+$printedName = isset($_POST['patient_signature']) ? $_POST['patient_signature'] : null;
+error_log("Processing " . count($rows) . " progress note rows for patient " . $patientId);
 
 try {
     $pdo->beginTransaction();
     
-    // Clear existing notes for this patient
-    $pdo->prepare("DELETE FROM progress_notes WHERE patient_id = ?")->execute([$patientId]);
-
-    // Prepare a single statement to insert all new rows
-    $stmt = $pdo->prepare("INSERT INTO progress_notes
-      (patient_id, date, tooth, progress, clinician, ci, remarks, patient_signature)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-
-    // Loop through the submitted rows and insert them into the database
-    foreach ($rows as $r) {
-        // Skip empty rows
-        if (empty(array_filter($r))) {
+    // Get existing row IDs from database
+    $existingStmt = $pdo->prepare("SELECT id FROM progress_notes WHERE patient_id = ?");
+    $existingStmt->execute(array($patientId));
+    $existingRows = $existingStmt->fetchAll(PDO::FETCH_ASSOC);
+    $existingIds = array();
+    foreach ($existingRows as $row) {
+        $existingIds[] = $row['id'];
+    }
+    
+    // Track which IDs are being updated
+    $processedIds = array();
+    
+    // Process each row
+    foreach ($rows as $index => $r) {
+        $rowId = !empty($r['id']) ? (int)$r['id'] : null;
+        error_log("Processing row " . ($index + 1) . ": ID=" . ($rowId ?: 'new') . ", data=" . json_encode($r));
+        
+        // Skip completely empty rows
+        if (empty($r['date']) && empty($r['tooth']) && empty($r['progress']) && 
+            empty($r['clinician']) && empty($r['ci']) && empty($r['remarks'])) {
+            error_log("Skipping empty row " . ($index + 1));
             continue;
         }
         
-        $stmt->execute([
-            $patientId,
-            $r['date'] ?: null,
-            $r['tooth'] ?: null,
-            $r['progress'] ?: null,
-            $r['clinician'] ?: null,
-            $r['ci'] ?: null,
-            $r['remarks'] ?: null,
-            $printedName // Use the single printed name for all rows
-        ]);
+        if ($rowId && in_array($rowId, $existingIds)) {
+            // Update existing row
+            error_log("Updating existing row with ID " . $rowId);
+            $updateStmt = $pdo->prepare("
+                UPDATE progress_notes SET
+                date = ?,
+                tooth = ?,
+                progress = ?,
+                clinician = ?,
+                ci = ?,
+                remarks = ?,
+                patient_signature = ?
+                WHERE id = ? AND patient_id = ?
+            ");
+            
+            $updateStmt->execute(array(
+                !empty($r['date']) ? $r['date'] : null,
+                !empty($r['tooth']) ? $r['tooth'] : null,
+                !empty($r['progress']) ? $r['progress'] : null,
+                !empty($r['clinician']) ? $r['clinician'] : null,
+                !empty($r['ci']) ? $r['ci'] : null,
+                !empty($r['remarks']) ? $r['remarks'] : null,
+                $printedName,
+                $rowId,
+                $patientId
+            ));
+            
+            $processedIds[] = $rowId;
+        } else {
+            // Insert new row
+            error_log("Inserting new row for patient " . $patientId);
+            $insertStmt = $pdo->prepare("
+                INSERT INTO progress_notes
+                (patient_id, date, tooth, progress, clinician, ci, remarks, patient_signature, auto_generated, procedure_log_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
+            ");
+            
+            $insertStmt->execute(array(
+                $patientId,
+                !empty($r['date']) ? $r['date'] : null,
+                !empty($r['tooth']) ? $r['tooth'] : null,
+                !empty($r['progress']) ? $r['progress'] : null,
+                !empty($r['clinician']) ? $r['clinician'] : null,
+                !empty($r['ci']) ? $r['ci'] : null,
+                !empty($r['remarks']) ? $r['remarks'] : null,
+                $printedName
+            ));
+        }
     }
     
     $pdo->commit();
@@ -127,5 +181,10 @@ try {
     $pdo->rollBack();
     http_response_code(500);
     error_log("Save Step 5 Failed: " . $e->getMessage());
-    exit('A database error occurred while saving progress notes.');
+    exit('Database error: ' . $e->getMessage());
+} catch (Exception $e) {
+    $pdo->rollBack();
+    http_response_code(500);
+    error_log("Save Step 5 Failed: " . $e->getMessage());
+    exit('Error: ' . $e->getMessage());
 }

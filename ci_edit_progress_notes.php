@@ -32,11 +32,62 @@ if (!$accessCheck->fetch()) {
 }
 
 /* ---------- Fetch existing progress notes ---------- */
-$stmt = $pdo->prepare("SELECT * FROM progress_notes WHERE patient_id = ? ORDER BY id");
+$stmt = $pdo->prepare("SELECT * FROM progress_notes WHERE patient_id = ? ORDER BY id ASC");
 $stmt->execute([$patientId]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Map procedure_log_id => treatment plan text from procedure_logs
+$tpMap = [];
+$logIds = array_filter(array_unique(array_map(function($r){ return $r['procedure_log_id'] ?? null; }, $rows)));
+if (!empty($logIds)) {
+    // Use a simpler approach - fetch one by one to avoid parameter binding issues
+    foreach ($logIds as $logId) {
+        $singleStmt = $pdo->prepare("SELECT id, procedure_selected FROM procedure_logs WHERE id = ?");
+        $singleStmt->execute([$logId]);
+        $logData = $singleStmt->fetch(PDO::FETCH_ASSOC);
+        if ($logData) {
+            $tpMap[$logData['id']] = $logData['procedure_selected'];
+        }
+    }
+}
+
+// Mark auto-generated notes and attach treatment plan text
+foreach ($rows as &$row) {
+    $row['treatment_plan'] = '';
+    if (!empty($row['procedure_log_id']) && isset($tpMap[$row['procedure_log_id']])) {
+        $row['treatment_plan'] = $tpMap[$row['procedure_log_id']];
+    }
+
+    if (!empty($row['auto_generated']) && (int)$row['auto_generated'] === 1) {
+        $prefix = '[AUTO] ';
+        if (strpos((string)$row['progress'], 'Procedure Logged:') !== false) {
+            if (strpos((string)$row['progress'], '[AUTO]') === false) {
+                $row['progress'] = $prefix . $row['progress'];
+            }
+        } else {
+            $row['progress'] = $prefix . 'Procedure Logged: ' . ($row['progress'] ?? '');
+        }
+        $row['is_auto_generated'] = true;
+    } else {
+        $row['is_auto_generated'] = false;
+    }
+}
+
 // Provide a default empty row if no notes exist
-if (!$rows) $rows = [['id'=>null,'date'=>'','tooth'=>'','progress'=>'','clinician'=>'','ci'=>'','remarks'=>'','patient_signature'=>'']];
+if (!$rows) {
+    $rows = [[
+        'id' => null,
+        'date' => '',
+        'tooth' => '',
+        'progress' => '',
+        'clinician' => '',
+        'ci' => '',
+        'remarks' => '',
+        'patient_signature' => '',
+        'treatment_plan' => '',
+        'is_auto_generated' => false
+    ]];
+}
 
 /* ---------- Fetch patient header info ---------- */
 $pt = $pdo->prepare("SELECT last_name, first_name, middle_initial, age, gender, status FROM patients WHERE id = ?");

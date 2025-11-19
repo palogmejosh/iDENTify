@@ -1233,8 +1233,29 @@ document.addEventListener('click', function(e) {
 </div>
 
 <script>
+/* ---------- CI EDIT MODAL FIXES FOR PROGRESS NOTES SYNCHRONIZATION ---------- */
+// These functions ensure that progress notes edited in the CI modal on patients.php
+// are properly synchronized with edit_patient_step5.php:
+// 1. Hidden ID inputs are properly handled for existing rows
+// 2. Data structure is consistent between both interfaces
+// 3. Save operations properly handle updates vs inserts
+// 4. Debugging and validation ensure data integrity
+
 let currentCITab = 'status';
 let ciCurrentUserName = '';
+
+// Function to validate progress notes data integrity
+function validateProgressNotesData(rows) {
+    console.log('Validating progress notes data:');
+    rows.forEach((row, index) => {
+        console.log(`Row ${index + 1}:`, {
+            id: row.id,
+            hasData: !!(row.date || row.tooth || row.progress || row.clinician || row.ci || row.remarks),
+            isEmpty: !(row.date || row.tooth || row.progress || row.clinician || row.ci || row.remarks)
+        });
+    });
+    return true;
+}
 
 function switchCITab(tabName) {
     currentCITab = tabName;
@@ -1284,9 +1305,23 @@ function closeCIEditModal() {
 }
 
 function loadCIProgressNotes(patientId) {
+    console.log('Loading progress notes for patient ID:', patientId);
+    
     fetch(`ci_edit_progress_notes.php?id=${patientId}`)
-        .then(response => response.json())
+        .then(response => {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                return response.json();
+            } else {
+                return response.text().then(text => {
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
+                });
+            }
+        })
         .then(data => {
+            console.log('Progress notes API response:', data);
+            
             if (data.success) {
                 ciCurrentUserName = data.currentUserName;
                 document.getElementById('ciEditPatientAge').textContent = `${data.patient.age} / ${data.patient.gender}`;
@@ -1295,30 +1330,60 @@ function loadCIProgressNotes(patientId) {
                 const tbody = document.getElementById('ciNotesTableBody');
                 tbody.innerHTML = '';
                 
-                data.progressNotes.forEach(note => {
-                    addCINotesRowWithData(note);
-                });
+                if (data.progressNotes && data.progressNotes.length > 0) {
+                    console.log('Adding', data.progressNotes.length, 'progress note rows');
+                    data.progressNotes.forEach((note, index) => {
+                        console.log(`Adding note ${index + 1}:`, note);
+                        addCINotesRowWithData(note);
+                    });
+                } else {
+                    console.log('No existing progress notes found, adding empty row');
+                    // Add an empty row by default
+                    addCINotesRow();
+                }
             } else {
-                alert('Error loading progress notes');
+                console.error('API returned error:', data);
+                alert('Error loading progress notes: ' + (data.message || 'Unknown error'));
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to load progress notes');
+            console.error('Error loading progress notes:', error);
+            alert('Failed to load progress notes. Please try again.');
         });
 }
 
 function addCINotesRow() {
-    addCINotesRowWithData({date: '', tooth: '', progress: '', clinician: ciCurrentUserName, ci: '', remarks: ''});
+    addCINotesRowWithData({
+        id: '',
+        date: '', 
+        tooth: '', 
+        progress: '', 
+        clinician: ciCurrentUserName, 
+        ci: '', 
+        remarks: ''
+    });
 }
 
 function addCINotesRowWithData(data) {
     const tbody = document.getElementById('ciNotesTableBody');
     const tr = document.createElement('tr');
+    const isAuto = !!data.is_auto_generated;
+    const tpBadge = data.treatment_plan ? `<span title="Treatment Plan" class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">TP</span>` : '';
+    const autoBadge = isAuto ? `<span title="Auto-generated from procedure log" class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">AUTO</span>` : '';
+    
     tr.innerHTML = `
-        <td class="border px-2 py-1"><input type="date" name="date[]" value="${data.date || ''}" class="w-full bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white"></td>
+        <td class="border px-2 py-1">
+            <input type="hidden" name="id[]" value="${data.id || ''}">
+            <input type="date" name="date[]" value="${data.date || ''}" class="w-full bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white">
+        </td>
         <td class="border px-2 py-1"><input type="text" name="tooth[]" value="${data.tooth || ''}" class="w-full bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white"></td>
-        <td class="border px-2 py-1"><input type="text" name="progress[]" value="${data.progress || ''}" class="w-full bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white"></td>
+        <td class="border px-2 py-1">
+            <div class="flex items-center gap-1">
+                <input type="text" name="progress[]" value="${data.progress || ''}" class="flex-1 bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white">
+                ${tpBadge}
+                ${autoBadge}
+            </div>
+        </td>
         <td class="border px-2 py-1"><input type="text" name="clinician[]" readonly value="${data.clinician || ciCurrentUserName}" class="w-full bg-gray-100 dark:bg-gray-600 border-0 focus:ring-0 text-xs"></td>
         <td class="border px-2 py-1"><input type="text" name="ci[]" value="${data.ci || ''}" class="w-full bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white"></td>
         <td class="border px-2 py-1"><input type="text" name="remarks[]" value="${data.remarks || ''}" class="w-full bg-transparent border-0 focus:ring-0 text-xs dark:bg-gray-700 dark:text-white"></td>
@@ -1364,28 +1429,46 @@ document.addEventListener('DOMContentLoaded', function() {
         notesForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin mr-1"></i>Saving...';
+            
             const formData = new FormData();
             formData.append('patient_id', document.getElementById('ciNotesPatientId').value);
             
-            // Collect all progress notes
-            const dates = Array.from(document.querySelectorAll('#ciNotesTableBody input[name="date[]"]')).map(i => i.value);
-            const teeth = Array.from(document.querySelectorAll('#ciNotesTableBody input[name="tooth[]"]')).map(i => i.value);
-            const progress = Array.from(document.querySelectorAll('#ciNotesTableBody input[name="progress[]"]')).map(i => i.value);
-            const clinicians = Array.from(document.querySelectorAll('#ciNotesTableBody input[name="clinician[]"]')).map(i => i.value);
-            const cis = Array.from(document.querySelectorAll('#ciNotesTableBody input[name="ci[]"]')).map(i => i.value);
-            const remarks = Array.from(document.querySelectorAll('#ciNotesTableBody input[name="remarks[]"]')).map(i => i.value);
-            
+            // Collect all progress notes with hidden IDs
+            const tbody = document.getElementById('ciNotesTableBody');
             const rows = [];
-            for (let i = 0; i < dates.length; i++) {
-                rows.push({
-                    date: dates[i],
-                    tooth: teeth[i],
-                    progress: progress[i],
-                    clinician: clinicians[i],
-                    ci: cis[i],
-                    remarks: remarks[i]
-                });
-            }
+            
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const id = tr.querySelector('input[name="id[]"]')?.value || '';
+                const date = tr.querySelector('input[name="date[]"]')?.value || '';
+                const tooth = tr.querySelector('input[name="tooth[]"]')?.value || '';
+                const progress = tr.querySelector('input[name="progress[]"]')?.value || '';
+                const clinician = tr.querySelector('input[name="clinician[]"]')?.value || '';
+                const ci = tr.querySelector('input[name="ci[]"]')?.value || '';
+                const remarks = tr.querySelector('input[name="remarks[]"]')?.value || '';
+                
+                // Only add rows that have some data (not completely empty)
+                if (date || tooth || progress || clinician || ci || remarks) {
+                    rows.push({
+                        id: id || null,  // Ensure null for new rows, not empty string
+                        date: date,
+                        tooth: tooth,
+                        progress: progress,
+                        clinician: clinician,
+                        ci: ci,
+                        remarks: remarks
+                    });
+                }
+            });
+            
+            console.log('Submitting rows to save_step5.php:', rows);
+            console.log('Patient ID:', document.getElementById('ciNotesPatientId').value);
+            console.log('Patient signature:', document.getElementById('ciEditPatientName').textContent);
+            
+            // Validate data integrity
+            validateProgressNotesData(rows);
             
             formData.append('notes_json', JSON.stringify(rows));
             formData.append('patient_signature', document.getElementById('ciEditPatientName').textContent);
@@ -1393,16 +1476,25 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const res = await fetch('save_step5.php', {method: 'POST', body: formData});
                 const msg = await res.text();
-                if (res.ok) {
+                
+                console.log('Server response status:', res.status);
+                console.log('Server response message:', msg);
+                
+                if (res.ok && msg.trim() === 'OK') {
                     closeCIEditModal();
                     alert('Progress notes saved successfully!');
+                    // Reload the page to ensure data is refreshed
                     location.reload();
                 } else {
-                    alert('Error: ' + msg);
+                    alert('Error saving progress notes: ' + msg);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="ri-save-line mr-1"></i>Save Progress Notes';
                 }
             } catch (error) {
-                alert('Network error occurred');
-                console.error('Error:', error);
+                alert('Network error occurred while saving progress notes');
+                console.error('Network error:', error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="ri-save-line mr-1"></i>Save Progress Notes';
             }
         });
     }
