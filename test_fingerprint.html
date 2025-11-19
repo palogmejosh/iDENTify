@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DigitalPersona Fingerprint Scanner Test</title>
+  <!-- Configuration and SDK files -->
+  <script src="js/fingerprint-config.js"></script>
+  <script src="node_modules/@digitalpersona/websdk/dist/websdk.client.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .status {
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .status.info {
+      background: #e3f2fd;
+      color: #1976d2;
+      border-left: 4px solid #1976d2;
+    }
+    .status.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-left: 4px solid #4CAF50;
+    }
+    .status.error {
+      background: #ffebee;
+      color: #c62828;
+      border-left: 4px solid #f44336;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .fingerprint-preview {
+      margin: 20px 0;
+      text-align: center;
+    }
+    .fingerprint-preview img {
+      max-width: 400px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      background: white;
+    }
+    .log {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid #4CAF50;
+      padding-left: 10px;
+    }
+    .log-entry.error {
+      border-left-color: #f44336;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 DigitalPersona Fingerprint Scanner Test</h1>
+    
+    <div id="status" class="status info">
+      <div id="statusText">Initializing...</div>
+    </div>
+    
+    <div>
+      <h3>Connection Information:</h3>
+      <ul>
+        <li><strong>Service Status:</strong> <span id="serviceStatus">Checking...</span></li>
+        <li><strong>Installation Path:</strong> C:\Program Files\DigitalPersona</li>
+        <li><strong>Service Name:</strong> DpHost (DigitalPersona Authentication Service)</li>
+        <li><strong>WebSDK Loaded:</strong> <span id="websdkStatus">Checking...</span></li>
+      </ul>
+    </div>
+    
+    <div>
+      <button id="testConnectionBtn" onclick="testConnection()">Test Connection</button>
+      <button id="captureBtn" onclick="captureFingerprint()" disabled>Capture Fingerprint</button>
+      <button id="clearBtn" onclick="clearFingerprint()">Clear</button>
+    </div>
+    
+    <div class="fingerprint-preview">
+      <h3>Fingerprint Preview:</h3>
+      <div id="preview" style="min-height: 200px; display: flex; align-items: center; justify-content: center; border: 2px dashed #ccc; border-radius: 4px;">
+        <span style="color: #999;">No fingerprint captured yet</span>
+      </div>
+    </div>
+    
+    <div>
+      <h3>Activity Log:</h3>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script>
+    let fpClient = null;
+    let captureCallback = null;
+    
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      addLog('Page loaded, checking WebSDK...');
+      
+      // Check if WebSDK is available
+      if (typeof WebSdk === 'undefined') {
+        updateStatus('error', 'WebSDK not loaded! Please check installation.');
+        document.getElementById('websdkStatus').textContent = '❌ Not Loaded';
+        addLog('ERROR: WebSDK is not available', true);
+      } else {
+        document.getElementById('websdkStatus').textContent = '✅ Loaded';
+        addLog('WebSDK loaded successfully');
+        initializeScanner();
+      }
+    });
+    
+    function initializeScanner() {
+      try {
+        addLog('Creating WebChannelClient for fingerprint service...');
+        
+        fpClient = new WebSdk.WebChannelClient('fingerprint', {
+          debug: true,
+          version: 4, // AESEncryption
+          reconnectAlways: false
+        });
+        
+        fpClient.onConnectionSucceed = () => {
+          updateStatus('success', 'Connected to DigitalPersona service! Scanner is ready.');
+          document.getElementById('serviceStatus').textContent = '✅ Connected';
+          document.getElementById('captureBtn').disabled = false;
+          addLog('✅ Successfully connected to DigitalPersona service');
+        };
+        
+        fpClient.onConnectionFailed = () => {
+          updateStatus('error', 'Failed to connect to DigitalPersona service. Please ensure the service is running.');
+          document.getElementById('serviceStatus').textContent = '❌ Not Connected';
+          document.getElementById('captureBtn').disabled = true;
+          addLog('❌ Connection to DigitalPersona service failed', true);
+        };
+        
+        fpClient.onDataReceivedTxt = (data) => {
+          addLog('Received data from service: ' + data.substring(0, 100) + '...');
+          try {
+            const response = JSON.parse(data);
+            if (captureCallback) {
+              captureCallback(response);
+            }
+          } catch (error) {
+            addLog('Error parsing response: ' + error.message, true);
+          }
+        };
+        
+        addLog('Attempting to connect to service (3 retries)...');
+        fpClient.connect(3);
+        
+      } catch (error) {
+        updateStatus('error', 'Initialization error: ' + error.message);
+        addLog('Initialization error: ' + error.message, true);
+      }
+    }
+    
+    function testConnection() {
+      if (!fpClient) {
+        addLog('Client not initialized', true);
+        return;
+      }
+      
+      if (fpClient.isConnected()) {
+        updateStatus('success', 'Connection is active and healthy!');
+        addLog('✅ Connection test passed');
+      } else {
+        updateStatus('error', 'Not connected. Attempting to reconnect...');
+        addLog('Connection test failed, attempting reconnect...', true);
+        fpClient.connect(3);
+      }
+    }
+    
+    function captureFingerprint() {
+      if (!fpClient || !fpClient.isConnected()) {
+        alert('Scanner is not connected!');
+        return;
+      }
+      
+      addLog('Starting fingerprint capture...');
+      updateStatus('info', 'Place your finger on the scanner...');
+      document.getElementById('captureBtn').disabled = true;
+      
+      captureCallback = (response) => {
+        try {
+          if (response.error) {
+            throw new Error(response.error);
+          }
+          
+          addLog('Fingerprint data received');
+          
+          // Handle different response formats
+          let imageData = response.image || response.Data || response.data;
+          if (!imageData) {
+            addLog('Response structure: ' + JSON.stringify(Object.keys(response)));
+            throw new Error('No image data in response');
+          }
+          
+          const imageUrl = imageData.startsWith('data:') ? imageData : `data:image/png;base64,${imageData}`;
+          
+          document.getElementById('preview').innerHTML = `<img src="${imageUrl}" alt="Fingerprint">`;
+          
+          const quality = response.quality || response.Quality || 'Unknown';
+          updateStatus('success', `Fingerprint captured! Quality: ${quality}%`);
+          addLog(`✅ Fingerprint captured successfully (Quality: ${quality}%)`);
+          
+        } catch (error) {
+          updateStatus('error', 'Capture failed: ' + error.message);
+          addLog('Capture error: ' + error.message, true);
+        } finally {
+          document.getElementById('captureBtn').disabled = false;
+          captureCallback = null;
+        }
+      };
+      
+      try {
+        const captureRequest = JSON.stringify({
+          command: 'capture',
+          format: 'PNG'
+        });
+        
+        fpClient.sendDataTxt(captureRequest);
+        addLog('Capture request sent to service');
+        
+        // Timeout after 15 seconds
+        setTimeout(() => {
+          if (captureCallback) {
+            captureCallback = null;
+            document.getElementById('captureBtn').disabled = false;
+            updateStatus('error', 'Capture timeout - no response from scanner');
+            addLog('Capture timeout', true);
+          }
+        }, 15000);
+        
+      } catch (error) {
+        updateStatus('error', 'Failed to send capture request: ' + error.message);
+        addLog('Send error: ' + error.message, true);
+        document.getElementById('captureBtn').disabled = false;
+        captureCallback = null;
+      }
+    }
+    
+    function clearFingerprint() {
+      document.getElementById('preview').innerHTML = '<span style="color: #999;">No fingerprint captured yet</span>';
+      addLog('Preview cleared');
+    }
+    
+    function updateStatus(type, message) {
+      const statusDiv = document.getElementById('status');
+      const statusText = document.getElementById('statusText');
+      
+      statusDiv.className = 'status ' + type;
+      statusText.textContent = message;
+    }
+    
+    function addLog(message, isError = false) {
+      const logDiv = document.getElementById('log');
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry' + (isError ? ' error' : '');
+      entry.textContent = `[${timestamp}] ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+  </script>
+</body>
+</html>

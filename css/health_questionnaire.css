@@ -1,0 +1,136 @@
+
+    /* ---- LEGAL-SIZE PAGE 2 STYLES (Updated for Slightly Larger Text) ---- */
+    @page { size: legal; margin: 0.5in; }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      font-size: 16px; /* Increased from 15px */
+      line-height: 1.2;
+      color: #000;
+      background: #fff;
+    }
+    
+    .form-header {
+      text-align: right;
+      font-weight: bold;
+      font-size: 11px; /* was 10px */
+      margin-bottom: 10px;
+    }
+    
+    .name-section {
+      border: 2px solid #000;
+      padding: 3px;
+      margin-bottom: 8px;
+      display: flex;
+    }
+    
+    .name-field {
+      flex: 1;
+      border-right: 1px solid #000;
+      padding: 2px;
+      text-align: center;
+    }
+    
+    .name-field:last-child { border-right: none; }
+    
+    .section-title {
+      font-weight: bold;
+      font-size: 11px; /* was 10px */
+      margin: 5px 0 3px 0;
+    }
+    
+    .questionnaire-note {
+      font-size: 9px; /* was 8px */
+      margin-bottom: 5px;
+    }
+    
+    .questions-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 2px solid #000;
+      margin-bottom: 8px;
+    }
+    
+    .questions-table th,
+    .questions-table td {
+      border: 1px solid #000;
+      padding: 3px;
+      font-size: 10px; /* was 9px */
+      vertical-align: top;
+    }
+    
+    .questions-table th {
+      background: #f0f0f0;
+      text-align: center;
+      font-weight: bold;
+      font-size: 9px; /* was 8px */
+    }
+    
+    .checkbox-col { width: 15px; text-align: center; }
+    .question-col { width: 48%; }
+    
+    .tall-row td { height: 25px; }
+    
+    .disclaimer {
+      font-size: 8px; /* was 7px */
+      margin: 8px 0;
+      text-align: justify;
+    }
+    
+    .signature-section {
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+      padding: 5px 0;
+      margin: 8px 0;
+      font-size: 9px; /* was 8px */
+    }
+    
+    .objective-header {
+      background: #808080;
+      color: #fff;
+      font-weight: bold;
+      font-size: 11px; /* was 10px */
+      padding: 3px;
+      margin: 8px 0 5px 0;
+    }
+    
+    .clinical-section {
+      font-weight: bold;
+      font-size: 10px; /* was 9px */
+      margin: 5px 0 3px 0;
+    }
+    
+    .examination-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 2px solid #000;
+      margin-bottom: 5px;
+    }
+    
+    .examination-table td {
+      border: 1px solid #000;
+      padding: 2px;
+      font-size: 8px; /* was 7px */
+      vertical-align: top;
+    }
+    
+    .exam-header {
+      background: #f0f0f0;
+      font-weight: bold;
+      font-size: 9px; /* was 8px */
+    }
+    
+    .exam-row { height: 20px; }
+    
+    .dotted-line {
+      border-bottom: 1px dotted #000;
+      display: inline-block;
+      min-width: 50px;
+    }
+    
+    .final-signature {
+      margin-top: 10px;
+      font-size: 9px; /* was 8px */
+    }

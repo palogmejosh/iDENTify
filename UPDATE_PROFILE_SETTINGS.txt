@@ -1,0 +1,76 @@
+================================================================================
+UPDATE: Added "Log Procedure" Menu to Profile and Settings Pages
+================================================================================
+
+Date: 2025-10-05
+Status: COMPLETED
+
+--------------------------------------------------------------------------------
+CHANGES MADE
+--------------------------------------------------------------------------------
+
+Two additional files have been updated to include the "Log Procedure" menu item
+in the sidebar for Clinician users:
+
+1. profile.php (Lines 449-455)
+   - Added conditional menu item for Clinicians
+   - Placed after "Patients" menu, before COD section
+   - Uses ri-file-list-3-line icon
+   - Links to clinician_log_procedure.php
+
+2. settings.php (Lines 161-168)
+   - Added conditional menu item for Clinicians
+   - Placed after "Patients" menu, before COD section
+   - Uses ri-file-list-3-line icon
+   - Links to clinician_log_procedure.php
+
+--------------------------------------------------------------------------------
+VERIFICATION
+--------------------------------------------------------------------------------
+
+To verify the changes:
+
+1. Login as a Clinician user
+2. Navigate to Profile page (profile.php)
+   - Check sidebar for "Log Procedure" menu item
+3. Navigate to Settings page (settings.php)
+   - Check sidebar for "Log Procedure" menu item
+4. Click "Log Procedure" from either page
+   - Should navigate to clinician_log_procedure.php
+5. Verify menu item does NOT appear for non-Clinician users
+   - Login as Admin, COD, or Clinical Instructor
+   - Menu item should not be visible
+
+--------------------------------------------------------------------------------
+COMPLETE NAVIGATION COVERAGE
+--------------------------------------------------------------------------------
+
+The "Log Procedure" menu item now appears in the sidebar on ALL pages:
+✅ dashboard.php
+✅ patients.php
+✅ clinician_log_procedure.php
+✅ profile.php
+✅ settings.php
+
+This ensures Clinicians have consistent access to the Log Procedure
+functionality from any page in the application.
+
+--------------------------------------------------------------------------------
+NO FURTHER ACTION REQUIRED
+--------------------------------------------------------------------------------
+
+All navigation updates are complete. The feature is fully integrated across
+the entire application.
+
+Browser Cache:
+- Clear browser cache (Ctrl+F5) to see the changes immediately
+- Or perform a hard refresh on profile.php and settings.php
+
+Testing:
+- Use the testing instructions in README_LOG_PROCEDURE.md
+- Verify menu appears correctly on all pages for Clinicians
+- Verify menu does not appear for other user roles
+
+================================================================================
+END OF UPDATE SUMMARY
+================================================================================

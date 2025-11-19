@@ -1,0 +1,214 @@
+╔════════════════════════════════════════════════════════════════════╗
+║  ALTER_DATABASE_SETUP_COMPLETE.SQL - What's Inside?               ║
+╚════════════════════════════════════════════════════════════════════╝
+
+
+📦 TABLES (4 new tables)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ patient_assignments         - Track patient-CI assignments
+✓ patient_approvals           - Track approval workflow
+✓ patient_transfers           - Handle patient transfers between CIs
+✓ procedure_logs              - Log clinician procedures
+
+
+🔧 STORED PROCEDURES (11 procedures)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ AutoAssignPatientToCI       - Auto-assign patients to best CI
+                                (specialty matching + load balancing)
+
+✓ AssignAllUnassignedPatients - Batch assign all unassigned patients
+
+✓ CleanupOfflineUsers         - Mark inactive CIs as offline (5 min)
+
+✓ CleanupInactiveUsers        - Cleanup with custom timeout
+
+✓ SetAllCIsOnline             - Force all CIs online (testing)
+
+✓ GetOnlineCIsCount           - Get count & names of online CIs
+
+✓ AcceptPatientTransfer       - Process transfer acceptance
+                                (updates assignment + approval)
+
+✓ RejectPatientTransfer       - Process transfer rejection
+
+✓ CancelPatientTransfer       - Cancel pending transfer
+
+Plus 2 more variants for compatibility
+
+
+⚡ TRIGGERS (4 triggers)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ after_patient_insert        - Create assignment when Clinician
+                                adds patient
+
+✓ trg_auto_assign_patient_    - Automatically find & assign to
+  after_insert                  best CI based on specialty
+
+✓ trg_auto_reassign_on_       - Reassign if status = 'cancelled'
+  status_change
+
+✓ update_user_activity_       - Auto-update last_activity timestamp
+  trigger                       when user is online
+
+
+👁️ VIEWS (7 views)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ cod_pending_assignments     - COD dashboard: all patients needing
+                                assignment or review
+
+✓ clinical_instructor_        - CI dashboard: their assigned patients
+  assignments                   with approval status
+
+✓ online_clinical_            - List currently online CIs with
+  instructors                   patient counts & activity
+
+✓ v_online_clinical_          - Enhanced online CI view with
+  instructors                   computed status
+
+✓ v_auto_assignment_stats     - Statistics: auto vs manual assignments
+
+✓ v_assignment_status_        - Per-CI summary: pending, accepted,
+  summary                       rejected, completed counts
+
+✓ v_patient_transfer_         - Monitor all transfer requests
+  requests                      (pending, accepted, rejected)
+
+
+⏰ SCHEDULED EVENTS (2 events)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ cleanup_offline_users_event - Runs every 2 minutes
+                                 Marks CIs offline if inactive >5 min
+
+✓ Second cleanup variant       - Redundant cleanup for reliability
+
+
+📊 COLUMN ADDITIONS (30+ new columns)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+patients table:
+  ✓ status                     - Approved/Disapproved/Pending
+  ✓ gender                     - Patient gender
+  ✓ birth_date                 - Date of birth
+  ✓ nickname                   - Preferred name
+  ✓ middle_initial             - Middle initial
+  ✓ treatment_hint             - Type of treatment needed
+  ✓ created_by                 - User ID who created patient
+
+users table:
+  ✓ is_active                  - Active flag (1/0)
+  ✓ account_status             - active/inactive
+  ✓ profile_picture            - Path to profile image
+  ✓ specialty_hint             - CI specialty (Orthodontics, etc.)
+  ✓ last_activity              - Last action timestamp
+  ✓ connection_status          - online/offline
+  ✓ role (COD added)           - Now includes COD role
+
+patient_pir table:
+  ✓ first_name, last_name      - Patient name fields
+  ✓ thumbmark                  - Thumbprint image path
+  ✓ medications_taken          - Current medications
+  ✓ allergies                  - Known allergies
+  ✓ past_illnesses            - Medical history
+  ✓ last_physician_exam        - Last checkup date
+  ✓ hospitalization            - Hospitalization history
+  ✓ bleeding_tendencies        - Bleeding issues
+  ✓ female_specific            - Female-specific health info
+  ✓ systems_summary            - Body systems summary
+
+patient_health table:
+  ✓ last_medical_physical_yes/no     - Checkup indicators
+  ✓ physician_name_addr_yes          - Has physician
+  ✓ abnormal_bleeding_yes/no         - Bleeding history
+  ✓ thirsty                          - Excessive thirst
+  ✓ bruise_easily_yes/no             - Bruising tendency
+  ✓ blood_transfusion_yes/no         - Transfusion history
+  ✓ blood_disorder_yes/no            - Blood disorders
+  ✓ head_neck_radiation_yes/no       - Radiation history
+  ✓ perio_gingiva_status             - Healthy/Inflamed
+  ✓ perio_inflammation_degree        - Mild/Moderate/Severe
+  ✓ perio_deposits_degree            - Light/Moderate/Heavy
+
+dental_examination table (if exists):
+  ✓ checked_by_ci               - CI who checked
+  ✓ tooth_chart_photo           - Original chart photo
+  ✓ tooth_chart_drawing_path    - Drawing overlay path
+
+informed_consent table (if exists):
+  ✓ consent_endodontics         - Endodontics consent
+  ✓ consent_periodontal         - Periodontal consent
+  ✓ data_privacy_date           - Privacy consent date
+  ✓ data_privacy_signature_path - Signature image path
+
+
+🔐 INDEXES (25+ indexes for performance)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ idx_patients_created_by
+✓ idx_patients_status
+✓ idx_patients_created_at
+✓ idx_users_role_status
+✓ idx_users_last_activity
+✓ idx_users_role_online
+✓ idx_users_profile_picture
+✓ idx_patient_assignments_patient
+✓ idx_patient_assignments_cod
+✓ idx_patient_assignments_ci
+✓ idx_patient_assignments_status
+✓ idx_patient_assignments_ci_status
+✓ idx_patient_approvals_patient
+✓ idx_patient_approvals_assignment
+✓ idx_patient_approvals_ci
+✓ idx_patient_approvals_status
+✓ idx_patient_transfers_patient
+✓ idx_patient_transfers_assignment
+✓ idx_patient_transfers_from_ci
+✓ idx_patient_transfers_to_ci
+✓ idx_patient_transfers_status
+✓ idx_procedure_logs_patient
+✓ idx_procedure_logs_clinician
+✓ idx_procedure_logs_logged_at
+✓ Plus more...
+
+
+🎯 KEY FEATURES ENABLED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Automatic Patient Assignment
+   - Matches patients to CIs based on specialty
+   - Load balances across online CIs
+   - Assigns to CI with fewest current patients
+
+✅ Online/Offline Tracking
+   - Real-time CI online status
+   - Auto-cleanup of inactive users every 2 minutes
+   - 5-minute inactivity timeout
+
+✅ Patient Transfer System
+   - CI can request transfer to another CI
+   - Target CI can accept or reject
+   - Source CI can cancel pending requests
+   - Full audit trail maintained
+
+✅ COD Workflow
+   - COD role and permissions
+   - Dashboard views for pending assignments
+   - Assignment management interface
+
+✅ CI Workflow
+   - View assigned patients
+   - Accept/reject assignments
+   - Transfer patients
+   - Track approval status
+
+✅ Procedure Logging
+   - Log procedures with patient details
+   - Track chair numbers
+   - Record status and remarks
+
+
+═══════════════════════════════════════════════════════════════════
+
+💡 BONUS: This script is IDEMPOTENT!
+   Safe to run multiple times - it checks before creating objects.
+
+📖 For more details, see: FILE_COMPARISON.md
+
+═══════════════════════════════════════════════════════════════════

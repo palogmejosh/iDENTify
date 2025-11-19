@@ -1,0 +1,195 @@
+/* ===================================================================
+   DENTAL EXAMINATION PAGE – REVISED FOR PRINT
+   This CSS has been updated to match the layout in Dental_examination_dent.jpg
+   =================================================================== */
+   .page3 {
+    padding: .5cm;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px; /* Base font size reduced to fit more content */
+    color: #000;
+    background: #fff;
+    position: relative; /* For positioning the form code */
+}
+
+/* NEW: Form code positioned at the absolute top-right */
+.form-code3 {
+    position: absolute;
+    top: .5cm;
+    right: .5cm;
+    text-align: right;
+    font-size: 10px;
+}
+
+/* MODIFIED: Header is now a flex container */
+.page3-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.header-left {
+    flex: 3; /* Takes up more space */
+}
+
+.header-right {
+    flex: 1; /* Takes up less space */
+    border: 1.5px solid #000;
+    padding: 5px;
+}
+
+/* MODIFIED: Title is now left-aligned and part of the flex layout */
+.page3-title {
+    font-size: 16px;
+    font-weight: bold;
+    text-align: left;
+    margin: 0 0 5px 0;
+    display: inline-block; /* Aligns with patient banner */
+}
+
+/* MODIFIED: Patient banner now uses flex for inline fields */
+.patient-banner3 {
+    display: flex;
+    gap: 10px;
+}
+.patient-banner3 .field3 {
+    border-bottom: 1px solid #000;
+    padding-bottom: 2px;
+}
+.patient-banner3 label {
+    font-weight: normal;
+    font-size: 9px;
+    display: inline; /* Labels and spans on the same line */
+    margin-right: 5px;
+}
+.patient-banner3 span {
+    font-size: 10px;
+    font-weight: bold;
+    display: inline;
+}
+
+/* Field styling for the header boxes */
+.field3 label {
+    font-size: 9px;
+    display: inline;
+}
+.field3 span {
+    display: inline-block;
+    border-bottom: 1px dotted #000;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* NEW: Main content grid for the two-column layout */
+.main-content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.2fr; /* Ratio adjusted to match image */
+    gap: 15px;
+    margin-bottom: 10px;
+}
+.grid-left-col, .grid-right-col {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Main tooth chart image */
+.tooth-chart-img {
+    width: 100%;
+    display: block;
+}
+
+/* NEW: Styles for the bordered boxes (Notes, Diagnostic Tests) */
+.notes-box, .diagnostic-box, .placeholder-box {
+    border: 1.5px solid #000;
+    padding: 5px;
+    flex-grow: 1; /* Allows the box to fill available space */
+}
+.notes-box {
+    height: 100px; /* Approximate height from image */
+}
+.diagnostic-box {
+    height: 200px; /* Approximate height from image */
+}
+.notes-box label, .diagnostic-box label {
+    font-weight: bold;
+    font-size: 10px;
+}
+.label-normal {
+    font-weight: normal;
+}
+
+/* MODIFIED: Section title for Assessment/Plan */
+.section-title3 {
+    font-size: 14px;
+    font-weight: bold;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 3px;
+    margin: 10px 0 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.title-separator {
+    width: 2px;
+    height: 14px;
+    background: #fff;
+    margin: 0 100px;
+}
+
+/* MODIFIED: Table styling to be more faithful to the image */
+.dent-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+    table-layout: fixed;
+}
+.dent-table th,
+.dent-table td {
+    border: 1px solid #000;
+    padding: 4px;
+    vertical-align: top;
+    height: 40px; /* Set a minimum height for rows */
+}
+.dent-table th {
+    background: #e0e0e0;
+    font-weight: bold;
+    font-size: 8px;
+}
+.dent-table td:nth-child(1) { width: 20%; }
+.dent-table td:nth-child(2) { width: 8%; text-align: center; }
+.dent-table td:nth-child(3) { width: 27%; border-right: 2px solid #000; } /* Thick line */
+.dent-table td:nth-child(4) { width: 27%; }
+.dent-table td:nth-child(5) { width: 18%; }
+
+/* NEW: Footer section layout */
+.page3-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+}
+.signature-area-left span {
+    font-size: 10px;
+}
+.case-history-box {
+    font-size: 9px;
+    display: grid;
+    gap: 4px;
+}
+.case-history-box > div {
+    display: grid;
+    grid-template-columns: auto auto 1.5fr auto 1fr; /* 5 columns for layout */
+    gap: 8px;
+    align-items: baseline;
+}
+.case-history-box .dotted-line {
+    border-bottom: 1px dotted #000;
+    min-width: 100px;
+    font-weight: bold;
+    font-size: 10px;
+    padding: 0 2px;
+}

@@ -1,0 +1,27 @@
+<!-- signature_pad.html -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature-pad.css">
+<canvas id="sig-canvas" width="400" height="150" class="border border-gray-400 rounded mb-1"></canvas>
+<br>
+<button type="button" id="sig-clear" class="text-xs px-2 py-1 bg-gray-200 rounded">Clear</button>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+<script>
+(function () {
+  const canvas = document.getElementById('sig-canvas');
+  const hidden = document.getElementById('sig-dataUrl');
+  const pad    = new SignaturePad(canvas, {backgroundColor:'#ffffff'});
+
+  /* load existing file if it exists */
+  window.addEventListener('DOMContentLoaded', () => {
+    const img = new Image();
+    img.onload = () => canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.src = hidden.dataset.src || '';
+  });
+
+  document.getElementById('sig-clear').addEventListener('click', () => pad.clear());
+
+  /* attach to any form submit */
+  document.addEventListener('submit', () => {
+    if (!pad.isEmpty()) hidden.value = pad.toDataURL('image/png');
+  });
+})();
+</script>

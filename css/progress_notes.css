@@ -1,0 +1,122 @@
+/* ========= PROGRESS NOTES PAGE – PRINT ONLY (REVISED) ========= */
+.page5 {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    color: #000;
+    background: #fff;
+}
+
+.form-code5 {
+    text-align: right;
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.top-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    gap: 20px;
+}
+
+.patient-details {
+    flex-grow: 1;
+}
+
+.detail-field {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.detail-field label {
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.detail-field .line {
+    display: block;
+    width: 100%;
+    border-bottom: 1px solid #000;
+    padding: 1px 4px;
+    min-height: 16px;
+}
+
+.detail-field.age-gender .line {
+    max-width: 200px;
+}
+
+.alert-box {
+    border: 1.5px solid #000;
+    background: #ffc;
+    color: #000;
+    font-weight: bold;
+    padding: 4px 12px;
+    text-align: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    border-radius: 0;
+}
+
+.progress-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    table-layout: fixed;
+}
+
+.progress-table th,
+.progress-table td {
+    border: 1px solid #999;
+    padding: 4px;
+    vertical-align: top;
+    height: 24px;
+}
+
+.progress-table th {
+    background-color: #f0f0f0;
+    font-weight: normal;
+    text-align: left;
+}
+
+.progress-table .col-date { width: 10%; }
+.progress-table .col-tooth { width: 8%; }
+.progress-table .col-notes { width: 44%; }
+.progress-table .col-clinician { width: 12%; }
+.progress-table .col-ci { width: 8%; }
+.progress-table .col-remarks { width: 18%; }
+
+
+/* ==========================================================
+ * NEW STYLES FOR FINAL SIGNATURE LAYOUT
+ * ========================================================== */
+.signature-area-final {
+    margin-top: 2cm;
+    font-size: 12px;
+}
+
+/* This wrapper holds the signature and the name together.
+   It's positioned relatively so the absolute signature stays inside it. */
+.signature-wrapper {
+    display: inline-block;
+    position: relative;
+    margin-left: 5px;
+}
+
+/* The signature image is positioned absolutely, above the text. */
+.signature-img {
+    position: absolute;
+    bottom: 90%; /* Places the image just above the text line */
+    left: 50%;
+    transform: translateX(-50%); /* Horizontally centers the image over the name */
+    width: 1in;
+    height: 0.7in; /* Adjusted height for better proportion */
+    object-fit: contain;
+}
+
+/* The patient's name is underlined as per the image. */
+.signature-name {
+    text-decoration: none;
+}

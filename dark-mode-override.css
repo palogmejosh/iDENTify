@@ -1,0 +1,191 @@
+/* ===============================================
+   GLOBAL DARK MODE OVERRIDE
+   Forces all backgrounds to black and text to white
+   =============================================== */
+
+.dark body,
+.dark main,
+.dark nav,
+.dark header,
+.dark div,
+.dark section,
+.dark article {
+    background: #000000 !important;
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+/* Remove all gradients in dark mode */
+.dark [class*="bg-gradient"],
+.dark [class*="from-"],
+.dark [class*="to-"],
+.dark [class*="via-"] {
+    background: #000000 !important;
+    background-image: none !important;
+}
+
+/* Force text to white in dark mode */
+.dark,
+.dark * {
+    color: #ffffff !important;
+}
+
+/* Specific overrides for various backgrounds */
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-200,
+.dark .bg-gray-300,
+.dark .bg-gray-400,
+.dark .bg-gray-500,
+.dark .bg-gray-600,
+.dark .bg-gray-700,
+.dark .bg-gray-800,
+.dark .bg-gray-900 {
+    background-color: #000000 !important;
+}
+
+/* Dark backgrounds for cards and containers */
+.dark .bg-white {
+    background-color: #000000 !important;
+}
+
+/* Borders - use subtle gray */
+.dark [class*="border"] {
+    border-color: #333333 !important;
+}
+
+/* Input fields */
+.dark input,
+.dark textarea,
+.dark select {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border-color: #333333 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+    color: #888888 !important;
+}
+
+/* Buttons - keep their original colors for visibility */
+.dark button[class*="bg-violet"],
+.dark button[class*="bg-purple"],
+.dark button[class*="bg-blue"],
+.dark button[class*="bg-green"],
+.dark button[class*="bg-red"],
+.dark button[class*="bg-yellow"],
+.dark a[class*="bg-violet"],
+.dark a[class*="bg-purple"],
+.dark a[class*="bg-blue"],
+.dark a[class*="bg-green"],
+.dark a[class*="bg-red"],
+.dark a[class*="bg-yellow"] {
+    background: inherit !important;
+    background-image: inherit !important;
+}
+
+/* Tables */
+.dark table,
+.dark thead,
+.dark tbody,
+.dark tr,
+.dark th,
+.dark td {
+    background-color: #000000 !important;
+    border-color: #333333 !important;
+    color: #ffffff !important;
+}
+
+.dark th {
+    background-color: #1a1a1a !important;
+}
+
+/* Modals and overlays */
+.dark .modal,
+.dark [class*="modal"],
+.dark .overlay,
+.dark [class*="overlay"] {
+    background-color: #000000 !important;
+}
+
+/* Sidebar specific */
+.dark nav.sidebar,
+.dark .sidebar {
+    background: #000000 !important;
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+/* Header specific */
+.dark header {
+    background: #000000 !important;
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+/* Hover states - slightly lighter black */
+.dark a:hover,
+.dark button:hover {
+    background-color: #1a1a1a !important;
+}
+
+/* Active/selected states */
+.dark .sidebar-active,
+.dark [class*="active"] {
+    background-color: #1a1a1a !important;
+}
+
+/* Alert boxes - preserve their meaning with borders */
+.dark .bg-red-100,
+.dark .bg-red-50,
+.dark [class*="bg-red"] {
+    background-color: #1a0000 !important;
+    border-color: #ff0000 !important;
+}
+
+.dark .bg-green-100,
+.dark .bg-green-50,
+.dark [class*="bg-green"] {
+    background-color: #001a00 !important;
+    border-color: #00ff00 !important;
+}
+
+.dark .bg-blue-100,
+.dark .bg-blue-50,
+.dark [class*="bg-blue"] {
+    background-color: #00001a !important;
+    border-color: #0000ff !important;
+}
+
+.dark .bg-yellow-100,
+.dark .bg-yellow-50,
+.dark [class*="bg-yellow"] {
+    background-color: #1a1a00 !important;
+    border-color: #ffff00 !important;
+}
+
+/* Icons - keep white */
+.dark i,
+.dark [class*="ri-"] {
+    color: #ffffff !important;
+}
+
+/* Dropdown menus */
+.dark select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+/* Scrollbars */
+.dark ::-webkit-scrollbar {
+    background-color: #000000 !important;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background-color: #333333 !important;
+}
+
+.dark ::-webkit-scrollbar-track {
+    background-color: #000000 !important;
+}

@@ -1,0 +1,92 @@
+╔════════════════════════════════════════════════════════════════╗
+║              iDENTify Database Setup - Quick Start             ║
+╚════════════════════════════════════════════════════════════════╝
+
+📋 FOR NEW DEVICE SETUP (Fresh Installation)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+METHOD 1: Automated Setup (EASIEST)
+───────────────────────────────────
+1. Make sure XAMPP is running (Start Apache and MySQL)
+2. Double-click: migrations\setup_database.bat
+3. Wait for completion
+4. Done! ✓
+
+
+METHOD 2: Manual Setup via Command Line
+────────────────────────────────────────
+Open PowerShell in project folder and run:
+
+C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS identify_db;"
+C:\xampp\mysql\bin\mysql.exe -u root identify_db -e "SOURCE C:\xampp\htdocs\identify\migrations\database_setup.sql"
+C:\xampp\mysql\bin\mysql.exe -u root -e "SOURCE C:\xampp\htdocs\identify\migrations\alter_database_setup_complete.sql"
+
+
+METHOD 3: phpMyAdmin (GUI)
+──────────────────────────
+1. Open phpMyAdmin (http://localhost/phpmyadmin)
+2. Create new database: identify_db
+3. Select identify_db database
+4. Go to SQL tab
+5. Import migrations/database_setup.sql
+6. Import migrations/alter_database_setup_complete.sql
+
+
+╔════════════════════════════════════════════════════════════════╗
+║                          IMPORTANT!                            ║
+╠════════════════════════════════════════════════════════════════╣
+║  ❌ DO NOT USE: alter_database_setup.sql (has errors)         ║
+║  ⚠️  INCOMPLETE: alter_database_setup_fixed.sql (no procs)    ║
+║  ✅ USE INSTEAD: alter_database_setup_complete.sql            ║
+╚════════════════════════════════════════════════════════════════╝
+
+
+📁 FILE ORDER (MUST RUN IN THIS SEQUENCE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: database_setup.sql          → Creates base tables
+Step 2: alter_database_setup_complete.sql → Adds ALL enhancements
+         (procedures, triggers, views, events, indexes, columns)
+
+
+✅ VERIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Check if setup was successful:
+C:\xampp\mysql\bin\mysql.exe -u root identify_db -e "SHOW TABLES;"
+
+You should see 12 tables including:
+  • users
+  • patients
+  • patient_assignments
+  • patient_approvals
+  • procedure_logs
+  • etc.
+
+
+🔧 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: "MySQL not found"
+→ Check XAMPP installation path
+→ Make sure MySQL is in C:\xampp\mysql\bin\
+
+Problem: "Access denied"
+→ Add -p flag for password: mysql.exe -u root -p
+
+Problem: "Table already exists"
+→ Safe to ignore if re-running scripts
+
+Problem: "Foreign key constraint fails"
+→ Make sure you ran database_setup.sql FIRST
+
+
+📚 MORE INFO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+See: migrations/README_SETUP.md for detailed instructions
+
+
+═══════════════════════════════════════════════════════════════════
+Database Name: identify_db
+Last Updated: October 6, 2025
