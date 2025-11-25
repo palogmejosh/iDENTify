@@ -72,6 +72,16 @@ $totalPages = ceil($totalItems / $itemsPerPage);
 // Get Clinical Instructors for assignment dropdown (with patient counts)
 $clinicalInstructors = getAllClinicalInstructorsWithCounts();
 
+// Badge styles for assignment status column to keep colors consistent
+$assignmentStatusStyles = [
+    'completed' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    'accepted' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    'unassigned' => 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+    'default' => 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+];
+
 // Get online Clinical Instructors for the online status table
 $onlineClinicalInstructors = getOnlineClinicalInstructors();
 
@@ -472,19 +482,20 @@ $profilePicture = $user['profile_picture'] ?? null;
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full 
-                                                <?php
-                                                $assignmentStatus = $patient['assignment_status'] ?? 'unassigned';
-                                                $assignmentClass = $assignmentStatus === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                                    ($assignmentStatus === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                                        ($assignmentStatus === 'accepted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                                            ($assignmentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                                                'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200')));
-                                                $displayText = $assignmentStatus === 'rejected' ? 'Rejected' : ucfirst($assignmentStatus);
-                                                ?>
-<span class=" inline-flex px-2 py-1 text-xs font-semibold rounded-full         <?= $assignmentClass ?>">
-                                            <?= htmlspecialchars($displayText) ?>
-                                        </span>
+                                        <?php
+                                        $assignmentStatus = strtolower($patient['assignment_status'] ?? 'unassigned');
+                                        $assignmentClass = $assignmentStatusStyles[$assignmentStatus] ?? $assignmentStatusStyles['default'];
+                                        $assignmentDisplayMap = [
+                                            'accepted' => 'Assigned',
+                                            'completed' => 'Completed',
+                                            'pending' => 'Pending',
+                                            'rejected' => 'Rejected',
+                                            'unassigned' => 'Unassigned'
+                                        ];
+                                        $displayText = $assignmentDisplayMap[$assignmentStatus] ?? ucfirst($assignmentStatus);
+                                        ?>
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full <?php echo $assignmentClass; ?>">
+                                            <?php echo htmlspecialchars($displayText); ?>
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
@@ -649,7 +660,7 @@ $profilePicture = $user['profile_picture'] ?? null;
                         <select name="clinical_instructor_id" id="clinicalInstructorSelect" required class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md
                                        focus:outline-none focus:ring-2 focus:ring-violet-500
                                        dark:bg-violet-900 dark:text-white text-sm">
-                            <option value="">?? Select Clinical Instructor (procedure details, online status & patient
+                            <option value="">Select Clinical Instructor (procedure details, online status & patient
                                 count shown)</option>
                             <?php foreach ($clinicalInstructors as $instructor): ?>
                                 <option value="<?php echo $instructor['id']; ?>"
@@ -659,10 +670,10 @@ $profilePicture = $user['profile_picture'] ?? null;
                                     data-online-status="<?php echo $instructor['online_status']; ?>"
                                     class="<?php echo $instructor['online_status'] === 'online' ? 'bg-green-50 dark:bg-green-900' : ''; ?>">
                                     <?php echo htmlspecialchars($instructor['full_name']); ?>
-                                    <?php echo $instructor['online_status'] === 'online' ? '??' : '??'; ?>
+                                    <?php echo $instructor['online_status'] === 'online' ? ' - Online' : ' - Offline'; ?>
                                     (<?php echo $instructor['current_patient_count']; ?> patients)
                                     <?php if (!empty($instructor['specialty_hint'])): ?>
-                                        ?? <?php echo htmlspecialchars($instructor['specialty_hint']); ?>
+                                        - <?php echo htmlspecialchars($instructor['specialty_hint']); ?>
                                     <?php else: ?>
                                         - General Practice
                                     <?php endif; ?>
@@ -749,7 +760,7 @@ $profilePicture = $user['profile_picture'] ?? null;
                                     data-patient-count="<?php echo $instructor['current_patient_count']; ?>"
                                     class="<?php echo $instructor['online_status'] === 'offline' ? 'text-gray-500' : ''; ?>">
                                     <?php echo htmlspecialchars($instructor['full_name']); ?>
-                                    <?php echo $instructor['online_status'] === 'online' ? '??' : '??'; ?>
+                                    <?php echo $instructor['online_status'] === 'online' ? ' - Online' : ' - Offline'; ?>
                                     (<?php echo $instructor['current_patient_count']; ?> patients)
                                     <?php if (!empty($instructor['specialty_hint'])): ?>
                                         - <?php echo htmlspecialchars($instructor['specialty_hint']); ?>
@@ -758,8 +769,8 @@ $profilePicture = $user['profile_picture'] ?? null;
                             <?php endforeach; ?>
                         </select>
                         <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                            ?? Online CIs will be immediately available for assignments<br>
-                            ?? Offline CIs will be added when they come online
+                            - Online CIs will be immediately available for assignments<br>
+                            - Offline CIs will be added when they come online
                         </p>
                     </div>
                 </div>
@@ -810,7 +821,7 @@ $profilePicture = $user['profile_picture'] ?? null;
             document.getElementById('patientInfo').innerHTML = `
                 <div><strong>Name:</strong> ${escapeHtml(patient.first_name + ' ' + patient.last_name)}</div>
                 <div><strong>Email:</strong> ${escapeHtml(patient.email)}</div>
-                <div><strong>?? Procedure Details:</strong> ${patient.treatment_hint ?
+                <div><strong>Procedure Details:</strong> ${patient.treatment_hint ?
                     `<span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 dark:from-purple-800 dark:to-purple-700 dark:text-purple-100 border border-purple-300 dark:border-purple-600"><i class="ri-heart-pulse-line mr-1"></i>${escapeHtml(patient.treatment_hint)}</span>` :
                     '<span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"><i class="ri-question-mark mr-1"></i>Not specified</span>'
                 }</div>

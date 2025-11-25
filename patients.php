@@ -125,6 +125,8 @@ if (isset($_GET['success']) && $_GET['success'] == 1) {
     $message = 'Patient approval updated successfully!';
 } elseif (isset($_GET['treatment_hint_updated']) && $_GET['treatment_hint_updated'] == 1) {
     $message = 'Procedure details updated successfully!';
+} elseif (isset($_GET['log_success']) && $_GET['log_success'] == 1) {
+    $message = 'Procedure logged successfully!';
 } elseif (isset($_GET['transfer_success']) && $_GET['transfer_success'] == 1) {
     $patientName = isset($_GET['patient_name']) ? htmlspecialchars($_GET['patient_name']) : 'Patient';
     $ciName = isset($_GET['ci_name']) ? htmlspecialchars($_GET['ci_name']) : 'the clinical instructor';
@@ -355,38 +357,38 @@ $profilePicture = $user['profile_picture'] ?? null;
                 <input type="hidden" name="sort_by" value="<?php echo htmlspecialchars($sortBy); ?>">
                 <input type="hidden" name="sort_order" value="<?php echo htmlspecialchars($sortOrder); ?>">
                 <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Patient Name or
-                            Email</label>
-                        <input type="text" name="search" placeholder="Search by name or email..."
-                            class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white"
-                            value="<?php echo htmlspecialchars($search); ?>">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Date From</label>
-                        <input type="date" name="date_from"
-                            class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white"
-                            value="<?php echo htmlspecialchars($dateFrom); ?>">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Date To</label>
-                        <input type="date" name="date_to"
-                            class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white"
-                            value="<?php echo htmlspecialchars($dateTo); ?>">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Status</label>
-                        <select name="status"
-                            class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white">
-                            <option value="all" <?php echo ($statusFilter === 'all') ? 'selected' : ''; ?>>All Status</option>
-                            <option value="Approved" <?php echo ($statusFilter === 'Approved') ? 'selected' : ''; ?>>Approved
-                            </option>
-                            <option value="Pending" <?php echo ($statusFilter === 'Pending') ? 'selected' : ''; ?>>Pending
-                            </option>
-                            <option value="Disapproved" <?php echo ($statusFilter === 'Disapproved') ? 'selected' : ''; ?>>
-                                Declined</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Patient Name or
+                        Email</label>
+                    <input type="text" name="search" placeholder="Search by name or email..."
+                        class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white"
+                        value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Date From</label>
+                    <input type="date" name="date_from"
+                        class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white"
+                        value="<?php echo htmlspecialchars($dateFrom); ?>">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Date To</label>
+                    <input type="date" name="date_to"
+                        class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white"
+                        value="<?php echo htmlspecialchars($dateTo); ?>">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">Status</label>
+                    <select name="status"
+                        class="w-full px-3 py-2 border border-violet-300 dark:border-violet-600 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-violet-800 dark:text-white bg-white">
+                        <option value="all" <?php echo ($statusFilter === 'all') ? 'selected' : ''; ?>>All Status</option>
+                        <option value="Approved" <?php echo ($statusFilter === 'Approved') ? 'selected' : ''; ?>>Approved
+                        </option>
+                        <option value="Pending" <?php echo ($statusFilter === 'Pending') ? 'selected' : ''; ?>>Pending
+                        </option>
+                        <option value="Disapproved" <?php echo ($statusFilter === 'Disapproved') ? 'selected' : ''; ?>>
+                            Declined</option>
+                    </select>
+                </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                             <i class="ri-heart-pulse-line mr-1"></i>Patient Status
@@ -398,15 +400,15 @@ $profilePicture = $user['profile_picture'] ?? null;
                             <option value="Inactive" <?php echo ($patientStatusFilter === 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
                         </select>
                     </div>
-                    <div class="flex space-x-2">
-                        <button type="submit"
-                            class="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white px-4 py-2 rounded-md shadow-lg">
-                            <i class="ri-search-line mr-2"></i>Search
-                        </button>
-                        <a href="patients.php"
-                            class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-md flex items-center justify-center shadow-lg">
-                            <i class="ri-refresh-line"></i>
-                        </a>
+                <div class="flex space-x-2">
+                    <button type="submit"
+                        class="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white px-4 py-2 rounded-md shadow-lg">
+                        <i class="ri-search-line mr-2"></i>Search
+                    </button>
+                    <a href="patients.php"
+                        class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-md flex items-center justify-center shadow-lg">
+                        <i class="ri-refresh-line"></i>
+                    </a>
                     </div>
                 </div>
                 <!-- Sort Controls -->

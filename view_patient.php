@@ -115,8 +115,20 @@ function val($key, $array = []) {
     return htmlspecialchars($array[$key] ?? '');
 }
 
+// Helper function to properly check checkbox values
+// Returns true only if the value is explicitly 1 (checked), false otherwise
+function isChecked($value) {
+    // Handle NULL, empty string, 0, '0', false - all should be unchecked
+    if ($value === null || $value === '' || $value === 0 || $value === '0' || $value === false) {
+        return false;
+    }
+    // Only return true if value is explicitly 1 or '1'
+    return ($value === 1 || $value === '1');
+}
+
 function checked($key, $array) {
-    return (!empty($array[$key])) ? 'checked' : '';
+    $value = $array[$key] ?? null;
+    return isChecked($value);
 }
 ?>
 <!DOCTYPE html>
@@ -590,7 +602,7 @@ function checked($key, $array) {
                 ['Hospitalized', 'hospitalized', '', 'hospitalized_note'],
                 ['Abnormal bleeding', 'abnormal_bleeding_yes', 'abnormal_bleeding_no', ''],
                 ['Bruise easily', 'bruise_easily_yes', 'bruise_easily_no', ''],
-                ['Blood transfusion', 'blood_transfusion_yes', 'blood_transfusion_no', ''],
+                ['Blood transfusion', 'blood_transfusion_yes', 'blood_transfusion_no', 'blood_transfusion_note'],
                 ['Blood disorder', 'blood_disorder_yes', 'blood_disorder_no', ''],
                 ['Head/neck radiation', 'head_neck_radiation_yes', 'head_neck_radiation_no', '']
               ];
@@ -598,12 +610,13 @@ function checked($key, $array) {
               foreach ($rows as [$q, $y, $n, $det]) {
                 $yes = $y && checked($y, $healthData);
                 $no  = $n && checked($n, $healthData);
+                $details = $det ? val($det, $healthData) : '';
                 $html .= '
                 <tr>
                   <td class="px-4 py-3 text-gray-900 dark:text-white">' . $q . '</td>
                   <td class="px-4 py-3 text-center">' . ($yes ? '✅' : '') . '</td>
                   <td class="px-4 py-3 text-center">' . ($no ? '✅' : '') . '</td>
-                  <td class="px-4 py-3 text-gray-700 dark:text-gray-300">' . val($det, $healthData) . '</td>
+                  <td class="px-4 py-3 text-gray-700 dark:text-gray-300">' . ($details ?: '—') . '</td>
                 </tr>';
               }
               return $html;
@@ -672,12 +685,16 @@ function checked($key, $array) {
             $html = '';
             foreach ($aller as $field => $label) {
               $on = checked($field, $healthData);
+              $note = ($field === 'other_allergy') ? val('other_allergy_note', $healthData) : '';
               $html .= '
               <div class="flex items-center space-x-2">
                 <span class="' . ($on ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-gray-600 dark:text-gray-400') . '">
                   ' . ($on ? '✓' : '○') . '
                 </span>
-                <span class="' . ($on ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300') . '">' . $label . '</span>
+                <span class="' . ($on ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300') . '">
+                  ' . $label . '
+                  ' . ($note ? '<span class="text-xs text-gray-500 ml-1">(' . $note . ')</span>' : '') . '
+                </span>
               </div>';
             }
             return $html;

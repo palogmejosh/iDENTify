@@ -285,6 +285,12 @@ $role = $user['role'] ?? '';
                             class="bg-gradient-to-b from-white to-violet-25 dark:from-gray-800 dark:to-violet-900 divide-y divide-violet-200 dark:divide-violet-700">
                             <?php if (!empty($filteredUsers)): ?>
                                 <?php foreach ($filteredUsers as $userData): ?>
+                                    <?php
+                                    // Prevent admins from editing or deleting their own account by hiding it from the list
+                                    if ($userData['id'] === $user['id']) {
+                                        continue;
+                                    }
+                                    ?>
                                     <tr
                                         class="hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 dark:hover:from-violet-900 dark:hover:to-purple-900">
                                         <td

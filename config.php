@@ -481,34 +481,34 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
     if (!$pdo)
         return ['patients' => [], 'total' => 0];
 
-    $sql = "SELECT 
+$sql = "SELECT 
                 p.id,
                 p.first_name,
                 p.last_name,
                 p.email,
                 p.phone,
                 p.age,
-                p.status as patient_status,
+                p.status AS patient_status,
                 p.treatment_hint,
                 p.created_at,
-                u_clinician.full_name as created_by_clinician,
-                u_clinician.id as created_by_id,
-                pa.id as assignment_id,
+                COALESCE(u_creator.full_name, 'N/A') AS created_by_clinician,
+                u_creator.id AS created_by_id,
+                pa.id AS assignment_id,
                 pa.assignment_status,
                 pa.assigned_at,
-                pa.notes as assignment_notes,
-                u_ci.full_name as assigned_clinical_instructor,
-                u_ci.id as clinical_instructor_id
+                pa.notes AS assignment_notes,
+                u_ci.full_name AS assigned_clinical_instructor,
+                u_ci.id AS clinical_instructor_id
             FROM patients p
-            JOIN users u_clinician ON p.created_by = u_clinician.id AND u_clinician.role = 'Clinician'
+            LEFT JOIN users u_creator ON p.created_by = u_creator.id
             LEFT JOIN patient_assignments pa ON p.id = pa.patient_id
             LEFT JOIN users u_ci ON pa.clinical_instructor_id = u_ci.id
             WHERE 1=1";
 
     // Count query for total records
-    $countSql = "SELECT COUNT(DISTINCT p.id) as total
+    $countSql = "SELECT COUNT(DISTINCT p.id) AS total
             FROM patients p
-            JOIN users u_clinician ON p.created_by = u_clinician.id AND u_clinician.role = 'Clinician'
+            LEFT JOIN users u_creator ON p.created_by = u_creator.id
             LEFT JOIN patient_assignments pa ON p.id = pa.patient_id
             LEFT JOIN users u_ci ON pa.clinical_instructor_id = u_ci.id
             WHERE 1=1";
@@ -520,7 +520,7 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
             CONCAT(p.first_name, ' ', p.last_name) LIKE ? OR 
             p.email LIKE ? OR 
             p.phone LIKE ? OR
-            u_clinician.full_name LIKE ?
+            u_creator.full_name LIKE ?
         )";
         $sql .= $searchCondition;
         $countSql .= $searchCondition;

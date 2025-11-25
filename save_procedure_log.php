@@ -179,7 +179,7 @@ try {
             }
         }
 
-        header('Location: clinician_log_procedure.php?success=1');
+        header('Location: patients.php?log_success=1');
         exit;
     } else {
         header('Location: clinician_log_procedure.php?error=' . urlencode('Failed to save procedure log'));
