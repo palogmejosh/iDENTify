@@ -56,6 +56,16 @@ $pendingAssignments = getCIPendingAssignments($user['id'], $search);
             </div>
         </div>
 
+        <!-- Notification/Alert Box -->
+        <div id="alertBox" class="mb-6 hidden">
+            <div id="alertContainer" class="px-4 py-3 rounded-lg shadow-lg relative">
+                <span id="alertMessage"></span>
+                <button onclick="hideAlert()" class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+        </div>
+
         <div
             class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-6">
             <div class="flex items-start">
@@ -282,10 +292,17 @@ $pendingAssignments = getCIPendingAssignments($user['id'], $search);
                 .then(data => {
                     if (data.success) {
                         closeDecisionModal();
-                        showAlert('Patient rejected. Assignment returned to COD as "Rejected".', 'success');
+                        if (status === 'accepted') {
+                            showAlert('Successfully accepted the patient. Refreshing...', 'success');
+                        } else {
+                            showAlert('Patient rejected. Assignment returned to COD as "Rejected".', 'success');
+                        }
                         const row = document.getElementById(`row-${assignmentId}`);
                         if (row) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 300); }
                         updatePendingBadge();
+                        if (status === 'accepted') {
+                            setTimeout(() => location.reload(), 1200);
+                        }
                     } else {
                         showAlert(data.message || 'Error processing request', 'error');
                     }

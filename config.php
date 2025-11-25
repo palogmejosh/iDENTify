@@ -259,28 +259,28 @@ function getPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateT
 
     // Role-based patient access control
     if ($userRole === 'Clinical Instructor') {
-        // Clinical Instructors only see patients assigned to them with 'accepted' status
-        // This ensures patients only appear in one CI's list at a time
+        // Clinical Instructors see patients assigned to them with 'accepted' or 'completed' status
+        // This ensures patients remain visible even after approval/completion
         if (!$hasCreatedByColumn) {
             error_log("Warning: created_by column missing. Clinical Instructor access restricted. Please run migration.");
             return []; // Return empty if no assignment system exists
         }
 
         // Updated query to ensure patients appear after CI accepts the assignment
-        // Only show 'accepted' status to prevent duplicates
-        // Use a subquery to ensure we only get the most recent 'accepted' assignment per patient
+        // Show both 'accepted' and 'completed' status to keep approved patients visible
+        // Use a subquery to ensure we only get the most recent assignment per patient
         // This prevents showing patients in multiple CI lists if there are any data inconsistencies
         $sql = "SELECT p.id, p.first_name, p.middle_initial, p.nickname, p.gender, p.last_name, p.birth_date, p.age, p.phone, p.email, p.status, p.treatment_hint, p.created_by, p.created_at, p.updated_at, u.full_name as created_by_name, pa.assignment_status, pa.assigned_at, pa.id as assignment_id 
                 FROM patients p 
                 LEFT JOIN users u ON p.created_by = u.id 
                 INNER JOIN patient_assignments pa ON p.id = pa.patient_id 
                 WHERE pa.clinical_instructor_id = ? 
-                  AND pa.assignment_status = 'accepted'
+                  AND pa.assignment_status IN ('accepted', 'completed')
                   AND pa.id = (
                       SELECT pa2.id 
                       FROM patient_assignments pa2 
                       WHERE pa2.patient_id = p.id 
-                      AND pa2.assignment_status = 'accepted'
+                      AND pa2.assignment_status IN ('accepted', 'completed')
                       ORDER BY pa2.assigned_at DESC, pa2.updated_at DESC, pa2.id DESC
                       LIMIT 1
                   )";

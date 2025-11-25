@@ -42,6 +42,18 @@
                     <a href="ci_patient_assignments.php"
                         class="sidebar-link flex items-center px-4 py-2 text-gray-900 dark:text-white rounded-md hover:bg-violet-100 dark:hover:bg-gray-800 <?php echo (basename($_SERVER['PHP_SELF']) == 'ci_patient_assignments.php') ? 'sidebar-active bg-gradient-to-r from-violet-100 to-purple-100 dark:bg-gray-800 border-l-4 border-violet-500' : ''; ?>">
                         <i class="ri-user-add-line mr-3"></i>CI Patient Assignments
+                        <?php
+                        if (function_exists('getCIPendingAssignments')) {
+                            $pendingAssignments = getCIPendingAssignments($user['id'] ?? '');
+                            if (!empty($pendingAssignments)):
+                                ?>
+                                <span class="ml-auto bg-purple-500 text-white text-xs rounded-full px-2 py-1">
+                                    <?php echo count($pendingAssignments); ?>
+                                </span>
+                            <?php
+                            endif;
+                        }
+                        ?>
                     </a>
                 </li>
                 <li>
