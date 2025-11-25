@@ -33,8 +33,12 @@ $isFirstLoad = empty($startDate) && empty($endDate) && empty($exactDate) && empt
 
 // If first load, default to today's date only
 if ($isFirstLoad) {
-    $startDate = date('Y-m-d');
-    $endDate = date('Y-m-d');
+    // Get today's date from the database to ensure timezone consistency
+    $dateStmt = $pdo->prepare("SELECT DATE(NOW()) as today_date");
+    $dateStmt->execute();
+    $dateResult = $dateStmt->fetch();
+    $startDate = $dateResult['today_date'];
+    $endDate = $dateResult['today_date'];
 }
 
 // Get unique values for filter dropdowns
@@ -112,7 +116,7 @@ $sql = "SELECT
     pl.procedure_details,
     pl.chair_number,
     pl.status,
-    COALESCE(pn.remarks, pl.remarks) as remarks,
+    COALESCE(pl.remarks, (SELECT GROUP_CONCAT(pn.remarks SEPARATOR ', ') FROM progress_notes pn WHERE pn.procedure_log_id = pl.id LIMIT 1)) as remarks,
     pl.clinician_name,
     pl.logged_at,
     u_clinician.id as clinician_id,
@@ -150,7 +154,6 @@ LEFT JOIN (
         AND pa1.assignment_status IN ('accepted', 'completed')
 ) pa_latest ON p.id = pa_latest.patient_id AND pra.id IS NULL
 LEFT JOIN users u_ci_patient ON pa_latest.clinical_instructor_id = u_ci_patient.id
-LEFT JOIN progress_notes pn ON pl.id = pn.procedure_log_id
 WHERE 1=1";
 
 $params = [];
@@ -158,15 +161,18 @@ $params = [];
 // Apply date filters
 if (!empty($exactDate)) {
     // Exact date filter takes priority over date range
+    // Filter from 00:00:00 to 23:59:59 of the exact date
     $sql .= " AND DATE(pl.logged_at) = ?";
     $params[] = $exactDate;
 } else {
     if (!empty($startDate)) {
+        // Filter from 00:00:00 of the start date
         $sql .= " AND DATE(pl.logged_at) >= ?";
         $params[] = $startDate;
     }
 
     if (!empty($endDate)) {
+        // Filter up to 23:59:59 of the end date
         $sql .= " AND DATE(pl.logged_at) <= ?";
         $params[] = $endDate;
     }
@@ -255,8 +261,18 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $procedureLogs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Debug logging for date filtering
+    if ($isFirstLoad) {
+        error_log("DEBUG: First load - Today's filter applied");
+        error_log("DEBUG: Start Date: " . $startDate . " 00:00:00");
+        error_log("DEBUG: End Date: " . $endDate);
+        error_log("DEBUG: Records found: " . count($procedureLogs));
+    }
 } catch (PDOException $e) {
     error_log("Error fetching procedure logs: " . $e->getMessage());
+    error_log("DEBUG SQL: " . $sql);
+    error_log("DEBUG Params: " . json_encode($params));
     $procedureLogs = [];
 }
 
