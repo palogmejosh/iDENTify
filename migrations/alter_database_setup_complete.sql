@@ -2057,3 +2057,179 @@ AFTER `status`;
 SELECT 'status and remarks columns added successfully!' AS message;
 DESCRIBE procedure_logs;
 
+-- =========================================================
+-- Migration: Add Patient Status Calculation Support
+-- Date: 2025-11-23
+-- Description: Optimize database for patient status calculation
+--              based on progress notes dates
+-- =========================================================
+
+USE identify_db;
+
+-- Add index on progress_notes for better performance when calculating patient status
+-- This index will speed up queries that need to find the most recent progress note per patient
+CREATE INDEX IF NOT EXISTS idx_progress_notes_patient_date 
+ON progress_notes(patient_id, date DESC);
+
+-- =========================================================
+-- Patient Status Calculation Logic (Documentation)
+-- =========================================================
+-- 
+-- Patient Status is calculated dynamically based on progress notes:
+-- 
+-- INACTIVE: Last progress note date is older than 1 year from current date
+--           Formula: MAX(progress_notes.date) < DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+-- 
+-- ACTIVE: Last progress note is within 1 year OR patient has no progress notes
+--         Formula: MAX(progress_notes.date) IS NULL 
+--                  OR MAX(progress_notes.date) >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+-- 
+-- Example Query:
+-- SELECT 
+--     p.id,
+--     p.first_name,
+--     p.last_name,
+--     CASE 
+--         WHEN MAX(pn.date) IS NULL THEN 'Active'
+--         WHEN MAX(pn.date) >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR) THEN 'Active'
+--         ELSE 'Inactive'
+--     END AS patient_status
+-- FROM patients p
+-- LEFT JOIN progress_notes pn ON p.id = pn.patient_id
+-- GROUP BY p.id;
+-- 
+-- =========================================================
+
+-- Verification: Show sample patient status calculation
+SELECT 
+    'Sample Patient Status Calculation' as info,
+    COUNT(*) as total_patients,
+    SUM(CASE WHEN patient_status = 'Active' THEN 1 ELSE 0 END) as active_patients,
+    SUM(CASE WHEN patient_status = 'Inactive' THEN 1 ELSE 0 END) as inactive_patients
+FROM (
+    SELECT 
+        p.id,
+        CASE 
+            WHEN MAX(pn.date) IS NULL THEN 'Active'
+            WHEN MAX(pn.date) >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR) THEN 'Active'
+            ELSE 'Inactive'
+        END AS patient_status
+    FROM patients p
+    LEFT JOIN progress_notes pn ON p.id = pn.patient_id
+    GROUP BY p.id
+) AS patient_status_summary;
+
+SELECT 'Migration completed successfully!' as status;
+
+-- =========================================================
+-- Migration: Add Progress Notes Auto-Generated Columns
+-- Description: Support auto-generated progress notes from procedure logs
+-- =========================================================
+
+USE identify_db;
+
+-- Add columns to support auto-generated progress notes from procedure logs
+-- Check if column exists before adding to avoid errors
+SET @dbname = DATABASE();
+SET @tablename = 'progress_notes';
+SET @columnname1 = 'auto_generated';
+SET @columnname2 = 'procedure_log_id';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (table_schema = @dbname)
+      AND (table_name = @tablename)
+      AND (column_name = @columnname1)
+  ) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname1, ' TINYINT(1) NULL DEFAULT 0 COMMENT ''1 if this progress note was auto-generated from a procedure log''')
+));
+
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- Add procedure_log_id column
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (table_schema = @dbname)
+      AND (table_name = @tablename)
+      AND (column_name = @columnname2)
+  ) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname2, ' INT(11) NULL DEFAULT NULL COMMENT ''Reference to the procedure log that generated this progress note''')
+));
+
+PREPARE alterIfNotExists2 FROM @preparedStatement;
+EXECUTE alterIfNotExists2;
+DEALLOCATE PREPARE alterIfNotExists2;
+
+-- Add index for procedure_log_id
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE
+      (table_schema = @dbname)
+      AND (table_name = @tablename)
+      AND (index_name = 'idx_procedure_log_id')
+  ) > 0,
+  'SELECT 1',
+  CONCAT('CREATE INDEX idx_procedure_log_id ON ', @tablename, ' (procedure_log_id)')
+));
+
+PREPARE createIndexIfNotExists FROM @preparedStatement;
+EXECUTE createIndexIfNotExists;
+DEALLOCATE PREPARE createIndexIfNotExists;
+
+-- 1.  Link progress_notes ↔ procedure_logs on procedure_log_id
+--     (already exists, just add index for speed)
+ALTER TABLE progress_notes
+ADD INDEX idx_proc_log_id (procedure_log_id);
+-- 2.  View that returns the latest remark per procedure_log
+DROP VIEW IF EXISTS v_proc_latest_remark;
+CREATE VIEW v_proc_latest_remark AS
+SELECT  procedure_log_id,
+remarks  -- the remark text written by CI
+FROM    (
+SELECT  procedure_log_id,
+remarks,
+ROW_NUMBER() OVER (PARTITION BY procedure_log_id
+ORDER BY id DESC) AS rn
+FROM    progress_notes
+WHERE   procedure_log_id IS NOT NULL
+AND   remarks IS NOT NULL
+AND   remarks != ''
+) AS t
+WHERE   rn = 1;
+
+-- =========================================================
+-- Migration: Create Procedure Assignments Table
+-- Description: Track procedure assignments from COD to Clinical Instructors
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS `procedure_assignments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `procedure_log_id` int(11) NOT NULL COMMENT 'Reference to procedure_logs table',
+  `cod_user_id` int(11) DEFAULT NULL COMMENT 'COD user who made the assignment',
+  `clinical_instructor_id` int(11) NOT NULL COMMENT 'Clinical Instructor assigned to review the procedure',
+  `assignment_status` enum('pending','accepted','rejected','completed') NOT NULL DEFAULT 'pending' COMMENT 'Status of the assignment',
+  `notes` text DEFAULT NULL COMMENT 'Assignment notes from COD or CI',
+  `assigned_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When the procedure was assigned',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `procedure_log_id` (`procedure_log_id`),
+  KEY `clinical_instructor_id` (`clinical_instructor_id`),
+  KEY `cod_user_id` (`cod_user_id`),
+  KEY `assignment_status` (`assignment_status`),
+  CONSTRAINT `fk_procedure_assignments_procedure_log` FOREIGN KEY (`procedure_log_id`) REFERENCES `procedure_logs` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_procedure_assignments_ci` FOREIGN KEY (`clinical_instructor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_procedure_assignments_cod` FOREIGN KEY (`cod_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Tracks procedure assignments to Clinical Instructors';
+
+-- Add index for faster queries
+CREATE INDEX idx_procedure_assignments_status_ci ON procedure_assignments(clinical_instructor_id, assignment_status);
+

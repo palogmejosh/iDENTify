@@ -131,21 +131,32 @@ $profilePicture = $user['profile_picture'] ?? null;
                             <label for="patientSelect" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                 Select Patient <span class="text-red-500">*</span>
                             </label>
-                            <select id="patientSelect" name="patient_id" required 
-                                    class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-violet-500 dark:bg-gray-700 dark:text-white">
-                                <option value="">-- Select a patient --</option>
-                                <?php foreach ($patients as $patient): ?>
-                                    <option value="<?php echo $patient['id']; ?>"
-                                            data-firstname="<?php echo htmlspecialchars($patient['first_name']); ?>"
-                                            data-lastname="<?php echo htmlspecialchars($patient['last_name']); ?>"
-                                            data-middleinitial="<?php echo htmlspecialchars($patient['middle_initial'] ?? ''); ?>"
-                                            data-age="<?php echo htmlspecialchars($patient['age'] ?? ''); ?>"
-                                            data-gender="<?php echo htmlspecialchars($patient['gender'] ?? ''); ?>"
-                                            data-hint="<?php echo htmlspecialchars($patient['treatment_hint'] ?? ''); ?>">
-                                        <?php echo htmlspecialchars($patient['last_name'] . ', ' . $patient['first_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="hidden" id="patientIdInput" name="patient_id">
+                            <div class="relative" data-component="patient-search">
+                                <div class="flex items-center gap-2">
+                                    <div class="relative flex-1">
+                                        <input
+                                            type="text"
+                                            id="patientSearchInput"
+                                            autocomplete="off"
+                                            placeholder="Type to search patients"
+                                            class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-violet-500 dark:bg-gray-700 dark:text-white"
+                                            aria-describedby="patientSearchHelp"
+                                        >
+                                        <div id="patientSearchResults" class="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto hidden">
+                                            <div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                Start typing to find a patient
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" id="clearPatientSelection" class="px-3 py-2 text-sm text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white" title="Clear selection">
+                                        <i class="ri-close-circle-line text-xl"></i>
+                                    </button>
+                                </div>
+                                <p id="patientSearchHelp" class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                    <i class="ri-search-line"></i> Search by first name, last name, middle initial, or treatment hints.
+                                </p>
+                            </div>
                         </div>
 
                         <!-- Patient Information (Auto-filled) -->
@@ -292,37 +303,204 @@ $profilePicture = $user['profile_picture'] ?? null;
             }
         }
 
-        // Patient selection handler
-        const patientSelect = document.getElementById('patientSelect');
+        const patientsData = <?php echo json_encode($patients, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+        const patientSearchInput = document.getElementById('patientSearchInput');
+        const patientSearchResults = document.getElementById('patientSearchResults');
+        const patientIdInput = document.getElementById('patientIdInput');
         const procedureSelect = document.getElementById('procedureSelect');
-        
-        patientSelect.addEventListener('change', async function() {
-            const selectedOption = this.options[this.selectedIndex];
-            
-            if (this.value) {
-                // Fill patient information
-                const firstName = selectedOption.dataset.firstname || '';
-                const middleInitial = selectedOption.dataset.middleinitial || '';
-                const lastName = selectedOption.dataset.lastname || '';
-                const fullName = middleInitial 
-                    ? `${firstName} ${middleInitial}. ${lastName}`
-                    : `${firstName} ${lastName}`;
-                
-                document.getElementById('patientName').value = fullName;
-                document.getElementById('patientAge').value = selectedOption.dataset.age || '--';
-                document.getElementById('patientGender').value = selectedOption.dataset.gender || '--';
-                document.getElementById('procedureHint').value = selectedOption.dataset.hint || '--';
-                
-                // Load treatment plans for selected patient
-                await loadTreatmentPlans(this.value);
+        const clearPatientSelectionButton = document.getElementById('clearPatientSelection');
+
+        let currentResults = [];
+        let activeResultIndex = -1;
+
+        function formatPatientDisplay(patient) {
+            const displayName = `${patient.last_name}, ${patient.first_name}`;
+            const age = patient.age ? ` • Age: ${patient.age}` : '';
+            const hint = patient.treatment_hint ? ` • ${patient.treatment_hint}` : '';
+            return `${displayName}${age}${hint}`;
+        }
+
+        function buildPatientFullName(patient) {
+            return patient.middle_initial
+                ? `${patient.first_name} ${patient.middle_initial}. ${patient.last_name}`
+                : `${patient.first_name} ${patient.last_name}`;
+        }
+
+        function clearPatientDetails() {
+            patientIdInput.value = '';
+            document.getElementById('patientName').value = '';
+            document.getElementById('patientAge').value = '';
+            document.getElementById('patientGender').value = '';
+            document.getElementById('procedureHint').value = '';
+            procedureSelect.disabled = true;
+            procedureSelect.innerHTML = '<option value="">-- Select a patient first --</option>';
+        }
+
+        function selectPatient(patient) {
+            patientIdInput.value = patient.id;
+            patientSearchInput.value = `${patient.last_name}, ${patient.first_name}`;
+            document.getElementById('patientName').value = buildPatientFullName(patient);
+            document.getElementById('patientAge').value = patient.age || '--';
+            document.getElementById('patientGender').value = patient.gender || '--';
+            document.getElementById('procedureHint').value = patient.treatment_hint || '--';
+            hidePatientResults();
+            loadTreatmentPlans(patient.id);
+        }
+
+        function hidePatientResults() {
+            patientSearchResults.classList.add('hidden');
+            patientSearchResults.setAttribute('aria-hidden', 'true');
+            activeResultIndex = -1;
+        }
+
+        function renderPatientResults(results) {
+            currentResults = results;
+            patientSearchResults.innerHTML = '';
+
+            if (!results.length) {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'px-4 py-3 text-sm text-gray-500 dark:text-gray-400';
+                emptyState.textContent = 'No patients found. Try a different search term.';
+                patientSearchResults.appendChild(emptyState);
             } else {
-                // Clear fields
-                document.getElementById('patientName').value = '';
-                document.getElementById('patientAge').value = '';
-                document.getElementById('patientGender').value = '';
-                document.getElementById('procedureHint').value = '';
-                procedureSelect.disabled = true;
-                procedureSelect.innerHTML = '<option value="">-- Select a patient first --</option>';
+                results.slice(0, 40).forEach((patient, index) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'w-full text-left px-4 py-3 hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors focus:outline-none';
+                    button.dataset.index = index.toString();
+                    button.innerHTML = `
+                        <p class="font-medium text-gray-800 dark:text-gray-100">${patient.last_name}, ${patient.first_name}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${patient.treatment_hint ? patient.treatment_hint : 'Patient ID: ' + patient.id}</p>
+                    `;
+
+                    button.addEventListener('mousedown', (event) => {
+                        event.preventDefault();
+                        selectPatient(patient);
+                    });
+
+                    patientSearchResults.appendChild(button);
+                });
+            }
+
+            patientSearchResults.classList.remove('hidden');
+            patientSearchResults.setAttribute('aria-hidden', 'false');
+            activeResultIndex = -1;
+        }
+
+        function filterPatients(query) {
+            const normalizedQuery = query.trim().toLowerCase();
+            if (!normalizedQuery) {
+                renderPatientResults(patientsData.slice(0, 40));
+                return;
+            }
+
+            const results = patientsData.filter((patient) => {
+                const fields = [
+                    patient.first_name,
+                    patient.last_name,
+                    patient.middle_initial,
+                    patient.treatment_hint
+                ].filter(Boolean).map((field) => field.toLowerCase());
+
+                return fields.some((field) => field.includes(normalizedQuery));
+            });
+
+            renderPatientResults(results);
+        }
+
+        function moveActiveSelection(direction) {
+            if (currentResults.length === 0) {
+                return;
+            }
+
+            const items = Array.from(patientSearchResults.querySelectorAll('button[data-index]'));
+            if (!items.length) {
+                return;
+            }
+
+            activeResultIndex += direction;
+            if (activeResultIndex < 0) {
+                activeResultIndex = items.length - 1;
+            } else if (activeResultIndex >= items.length) {
+                activeResultIndex = 0;
+            }
+
+            items.forEach((item, index) => {
+                if (index === activeResultIndex) {
+                    item.classList.add('bg-violet-100', 'dark:bg-gray-700');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('bg-violet-100', 'dark:bg-gray-700');
+                }
+            });
+        }
+
+        patientSearchInput.addEventListener('input', (event) => {
+            const value = event.target.value;
+            filterPatients(value);
+            patientIdInput.value = '';
+            if (!value.trim()) {
+                clearPatientDetails();
+            }
+        });
+
+        patientSearchInput.addEventListener('focus', () => {
+            if (!patientSearchInput.value.trim()) {
+                renderPatientResults(patientsData.slice(0, 40));
+            } else {
+                filterPatients(patientSearchInput.value);
+            }
+        });
+
+        patientSearchInput.addEventListener('keydown', (event) => {
+            switch (event.key) {
+                case 'ArrowDown':
+                    event.preventDefault();
+                    moveActiveSelection(1);
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    moveActiveSelection(-1);
+                    break;
+                case 'Enter':
+                    if (activeResultIndex >= 0 && currentResults[activeResultIndex]) {
+                        event.preventDefault();
+                        selectPatient(currentResults[activeResultIndex]);
+                    }
+                    break;
+                case 'Escape':
+                    hidePatientResults();
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        patientSearchInput.addEventListener('blur', () => {
+            setTimeout(() => hidePatientResults(), 150);
+        });
+
+        clearPatientSelectionButton.addEventListener('click', () => {
+            patientSearchInput.value = '';
+            clearPatientDetails();
+            hidePatientResults();
+            patientSearchInput.focus();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('[data-component="patient-search"]')) {
+                hidePatientResults();
+            }
+        });
+
+        document.getElementById('procedureLogForm').addEventListener('submit', (event) => {
+            if (!patientIdInput.value) {
+                event.preventDefault();
+                patientSearchInput.focus();
+                patientSearchInput.classList.add('ring-2', 'ring-red-500');
+                setTimeout(() => {
+                    patientSearchInput.classList.remove('ring-2', 'ring-red-500');
+                }, 800);
             }
         });
 
