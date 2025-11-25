@@ -11,7 +11,8 @@ $password = '';
 $pdo = null;
 
 // Initialize database connection
-function initDatabase() {
+function initDatabase()
+{
     global $pdo, $host, $dbname, $username, $password;
 
     try {
@@ -31,11 +32,13 @@ function initDatabase() {
 initDatabase();
 
 // Online/Offline Status Functions
-function updateUserActivity($userId) {
+function updateUserActivity($userId)
+{
     global $pdo;
-    
-    if (!$pdo || !$userId) return false;
-    
+
+    if (!$pdo || !$userId)
+        return false;
+
     try {
         // Update both last_activity and connection_status to keep user online during active session
         $stmt = $pdo->prepare("UPDATE users SET last_activity = NOW(), connection_status = 'online' WHERE id = ?");
@@ -46,11 +49,13 @@ function updateUserActivity($userId) {
     }
 }
 
-function setUserOnlineStatus($userId, $status = 'online') {
+function setUserOnlineStatus($userId, $status = 'online')
+{
     global $pdo;
-    
-    if (!$pdo || !$userId) return false;
-    
+
+    if (!$pdo || !$userId)
+        return false;
+
     try {
         $stmt = $pdo->prepare("UPDATE users SET connection_status = ?, last_activity = NOW() WHERE id = ?");
         return $stmt->execute([$status, $userId]);
@@ -60,11 +65,13 @@ function setUserOnlineStatus($userId, $status = 'online') {
     }
 }
 
-function isUserOnline($userId, $timeoutMinutes = 5) {
+function isUserOnline($userId, $timeoutMinutes = 5)
+{
     global $pdo;
-    
-    if (!$pdo || !$userId) return false;
-    
+
+    if (!$pdo || !$userId)
+        return false;
+
     try {
         $stmt = $pdo->prepare("
             SELECT connection_status, last_activity 
@@ -73,25 +80,25 @@ function isUserOnline($userId, $timeoutMinutes = 5) {
         ");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
-        
+
         if (!$user || $user['connection_status'] !== 'online') {
             return false;
         }
-        
+
         // Check if last activity was within timeout period
         if ($user['last_activity']) {
             $lastActivity = new DateTime($user['last_activity']);
             $now = new DateTime();
             $diff = $now->diff($lastActivity);
             $minutesDiff = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
-            
+
             if ($minutesDiff > $timeoutMinutes) {
                 // Auto-logout user due to inactivity
                 setUserOnlineStatus($userId, 'offline');
                 return false;
             }
         }
-        
+
         return true;
     } catch (PDOException $e) {
         error_log("Error checking user online status: " . $e->getMessage());
@@ -99,26 +106,28 @@ function isUserOnline($userId, $timeoutMinutes = 5) {
     }
 }
 
-function getUserOnlineStatus($userData) {
-    if (!$userData) return 'offline';
-    
+function getUserOnlineStatus($userData)
+{
+    if (!$userData)
+        return 'offline';
+
     // Check if user is marked as online
     if ($userData['connection_status'] === 'online') {
         // If no last_activity, assume just logged in (online)
         if (!$userData['last_activity']) {
             return 'online';
         }
-        
+
         // Check if within activity timeout
         try {
             // Use server timezone for consistency
             $lastActivity = new DateTime($userData['last_activity']);
             $now = new DateTime();
-            
+
             // Calculate time difference in seconds for more precision
             $timeDiffSeconds = $now->getTimestamp() - $lastActivity->getTimestamp();
             $minutesDiff = floor($timeDiffSeconds / 60);
-            
+
             // Consider user offline if inactive for more than 5 minutes
             if ($minutesDiff <= 5) {
                 return 'online';
@@ -129,15 +138,17 @@ function getUserOnlineStatus($userData) {
             return 'online';
         }
     }
-    
+
     return 'offline';
 }
 
 // Authentication functions
-function authenticateUser($username, $password) {
+function authenticateUser($username, $password)
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
     $stmt->execute([$username]);
@@ -157,7 +168,7 @@ function authenticateUser($username, $password) {
             // Password is plain text
             $isPasswordCorrect = ($password === $user['password']);
         }
-        
+
         if ($isPasswordCorrect) {
             // Set user as online when successfully authenticated
             setUserOnlineStatus($user['id'], 'online');
@@ -168,48 +179,56 @@ function authenticateUser($username, $password) {
     return false;
 }
 
-function isAuthenticated() {
+function isAuthenticated()
+{
     return isset($_SESSION['user_id']);
 }
 
-function getCurrentUser() {
+function getCurrentUser()
+{
     global $pdo;
 
-    if (!isset($_SESSION['user_id']) || !$pdo) return null;
+    if (!isset($_SESSION['user_id']) || !$pdo)
+        return null;
 
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     return $stmt->fetch();
 }
 
-function requireAuth() {
+function requireAuth()
+{
     if (!isAuthenticated()) {
         redirectToLogin();
     }
-    
+
     // Update user activity if authenticated
     if (isset($_SESSION['user_id'])) {
         updateUserActivity($_SESSION['user_id']);
     }
 }
 
-function redirectToLogin() {
+function redirectToLogin()
+{
     header('Location: login.php');
     exit;
 }
 
-function redirectToDashboard() {
+function redirectToDashboard()
+{
     header('Location: dashboard.php');
     exit;
 }
 
 
 // Check if created_by column exists in patients table
-function checkCreatedByColumnExists() {
+function checkCreatedByColumnExists()
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         $stmt = $pdo->prepare(
             "SELECT COUNT(*) as count 
@@ -228,48 +247,62 @@ function checkCreatedByColumnExists() {
 }
 
 // Reusable data functions (using PDO)
-function getPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateTo = '', $userRole = '', $userId = null) {
+function getPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateTo = '', $userRole = '', $userId = null, $patientStatusFilter = 'all')
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     // Check if created_by column exists
     $hasCreatedByColumn = checkCreatedByColumnExists();
-    
+
     // Role-based patient access control
     if ($userRole === 'Clinical Instructor') {
-        // Clinical Instructors only see patients assigned to them (accepted or completed)
+        // Clinical Instructors only see patients assigned to them with 'accepted' status
+        // This ensures patients only appear in one CI's list at a time
         if (!$hasCreatedByColumn) {
             error_log("Warning: created_by column missing. Clinical Instructor access restricted. Please run migration.");
             return []; // Return empty if no assignment system exists
         }
-        
+
         // Updated query to ensure patients appear after CI accepts the assignment
+        // Only show 'accepted' status to prevent duplicates
+        // Use a subquery to ensure we only get the most recent 'accepted' assignment per patient
+        // This prevents showing patients in multiple CI lists if there are any data inconsistencies
         $sql = "SELECT p.id, p.first_name, p.middle_initial, p.nickname, p.gender, p.last_name, p.birth_date, p.age, p.phone, p.email, p.status, p.treatment_hint, p.created_by, p.created_at, p.updated_at, u.full_name as created_by_name, pa.assignment_status, pa.assigned_at, pa.id as assignment_id 
                 FROM patients p 
                 LEFT JOIN users u ON p.created_by = u.id 
                 INNER JOIN patient_assignments pa ON p.id = pa.patient_id 
                 WHERE pa.clinical_instructor_id = ? 
-                  AND pa.assignment_status IN ('accepted', 'completed')";
+                  AND pa.assignment_status = 'accepted'
+                  AND pa.id = (
+                      SELECT pa2.id 
+                      FROM patient_assignments pa2 
+                      WHERE pa2.patient_id = p.id 
+                      AND pa2.assignment_status = 'accepted'
+                      ORDER BY pa2.assigned_at DESC, pa2.updated_at DESC, pa2.id DESC
+                      LIMIT 1
+                  )";
         $params = [$userId];
-        
+
     } elseif ($hasCreatedByColumn) {
         // Use the new query with created_by filtering for other roles
         $sql = "SELECT p.id, p.first_name, p.middle_initial, p.nickname, p.gender, p.last_name, p.birth_date, p.age, p.phone, p.email, p.status, p.treatment_hint, p.created_by, p.created_at, p.updated_at, u.full_name as created_by_name FROM patients p LEFT JOIN users u ON p.created_by = u.id WHERE 1=1";
         $params = [];
-        
+
         // Filter for Clinicians: only show patients they created
         if ($userRole === 'Clinician' && $userId) {
             $sql .= " AND p.created_by = ?";
             $params[] = $userId;
         }
         // COD and Admin see all patients created by Clinicians (no additional filtering needed)
-        
+
     } else {
         // Fallback to old query without created_by for non-Clinical Instructor roles
         $sql = "SELECT p.id, p.first_name, p.middle_initial, p.nickname, p.gender, p.last_name, p.birth_date, p.age, p.phone, p.email, p.status, p.treatment_hint, p.created_by, p.created_at, p.updated_at, NULL as created_by_name FROM patients p WHERE 1=1";
         $params = [];
-        
+
         // If column doesn't exist, show warning for roles that need it
         if (in_array($userRole, ['Clinician', 'COD'])) {
             error_log("Warning: created_by column missing. {$userRole} seeing all patients. Please run migration.");
@@ -306,7 +339,21 @@ function getPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateT
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $patients = $stmt->fetchAll();
+        
+        // Filter by patient status if needed (calculated from progress notes)
+        if ($patientStatusFilter !== 'all' && !empty($patients)) {
+            $filteredPatients = [];
+            foreach ($patients as $patient) {
+                $patientStatus = getPatientStatus($patient['id']);
+                if ($patientStatus === $patientStatusFilter) {
+                    $filteredPatients[] = $patient;
+                }
+            }
+            return $filteredPatients;
+        }
+        
+        return $patients;
     } catch (PDOException $e) {
         error_log("Error in getPatients: " . $e->getMessage());
         // Fallback to basic query without filtering
@@ -323,15 +370,17 @@ function getPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateT
 }
 
 
-function addPatient($firstName, $lastName, $age, $phone, $email, $status = 'Pending', $createdBy = null) {
+function addPatient($firstName, $lastName, $age, $phone, $email, $status = 'Pending', $createdBy = null)
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     try {
         // Check if created_by column exists
         $hasCreatedByColumn = checkCreatedByColumnExists();
-        
+
         if ($hasCreatedByColumn) {
             // Use the new query with created_by
             $stmt = $pdo->prepare("INSERT INTO patients (first_name, last_name, age, phone, email, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -347,10 +396,12 @@ function addPatient($firstName, $lastName, $age, $phone, $email, $status = 'Pend
     }
 }
 
-function getUsers($roleFilter = 'all', $search = '', $statusFilter = 'all') {
+function getUsers($roleFilter = 'all', $search = '', $statusFilter = 'all')
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     $sql = "SELECT * FROM users WHERE 1=1";
     $params = [];
@@ -377,12 +428,12 @@ function getUsers($roleFilter = 'all', $search = '', $statusFilter = 'all') {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $users = $stmt->fetchAll();
-        
+
         // Add online status to each user
         foreach ($users as &$user) {
             $user['online_status'] = getUserOnlineStatus($user);
         }
-        
+
         return $users;
     } catch (PDOException $e) {
         error_log("Error in getUsers: " . $e->getMessage());
@@ -390,10 +441,12 @@ function getUsers($roleFilter = 'all', $search = '', $statusFilter = 'all') {
     }
 }
 
-function addUser($username, $fullName, $email, $password, $role, $accountStatus = 'active') {
+function addUser($username, $fullName, $email, $password, $role, $accountStatus = 'active')
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     try {
         $stmt = $pdo->prepare("INSERT INTO users (username, full_name, email, password, role, account_status) VALUES (?, ?, ?, ?, ?, ?)");
@@ -404,10 +457,12 @@ function addUser($username, $fullName, $email, $password, $role, $accountStatus 
     }
 }
 
-function getLastUpdateTime($table) {
+function getLastUpdateTime($table)
+{
     global $pdo;
 
-    if (!$pdo) return null;
+    if (!$pdo)
+        return null;
 
     $stmt = $pdo->prepare("SELECT MAX(updated_at) as last_update FROM $table");
     $stmt->execute();
@@ -419,10 +474,12 @@ function getLastUpdateTime($table) {
 // COD-specific functions for patient assignment workflow
 
 // Get patients for COD - show patients created by Clinicians that need assignment
-function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateTo = '', $assignmentStatus = 'all', $page = 1, $itemsPerPage = 0) {
+function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $dateTo = '', $assignmentStatus = 'all', $page = 1, $itemsPerPage = 0)
+{
     global $pdo;
 
-    if (!$pdo) return ['patients' => [], 'total' => 0];
+    if (!$pdo)
+        return ['patients' => [], 'total' => 0];
 
     $sql = "SELECT 
                 p.id,
@@ -447,7 +504,7 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
             LEFT JOIN patient_assignments pa ON p.id = pa.patient_id
             LEFT JOIN users u_ci ON pa.clinical_instructor_id = u_ci.id
             WHERE 1=1";
-    
+
     // Count query for total records
     $countSql = "SELECT COUNT(DISTINCT p.id) as total
             FROM patients p
@@ -455,7 +512,7 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
             LEFT JOIN patient_assignments pa ON p.id = pa.patient_id
             LEFT JOIN users u_ci ON pa.clinical_instructor_id = u_ci.id
             WHERE 1=1";
-    
+
     $params = [];
 
     if (!empty($search)) {
@@ -506,7 +563,7 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
     }
 
     $sql .= " ORDER BY p.created_at DESC";
-    
+
     // Add pagination if itemsPerPage > 0
     if ($itemsPerPage > 0) {
         $offset = ($page - 1) * $itemsPerPage;
@@ -518,7 +575,7 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
         $countStmt = $pdo->prepare($countSql);
         $countStmt->execute($params);
         $totalRecords = $countStmt->fetch()['total'];
-        
+
         // Get paginated results
         $stmt = $pdo->prepare($sql);
         if ($itemsPerPage > 0) {
@@ -527,9 +584,9 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
         } else {
             $stmt->execute($params);
         }
-        
+
         $patients = $stmt->fetchAll();
-        
+
         return [
             'patients' => $patients,
             'total' => $totalRecords
@@ -541,10 +598,12 @@ function getCODPatients($search = '', $statusFilter = 'all', $dateFrom = '', $da
 }
 
 // Get Clinical Instructors for assignment dropdown
-function getClinicalInstructors() {
+function getClinicalInstructors()
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     try {
         $stmt = $pdo->prepare("SELECT id, full_name, email, specialty_hint FROM users WHERE role = 'Clinical Instructor' AND account_status = 'active' ORDER BY full_name ASC");
@@ -557,14 +616,16 @@ function getClinicalInstructors() {
 }
 
 // Assign patient to Clinical Instructor (COD function)
-function assignPatientToClinicalInstructor($patientId, $codUserId, $clinicalInstructorId, $notes = '') {
+function assignPatientToClinicalInstructor($patientId, $codUserId, $clinicalInstructorId, $notes = '')
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     try {
         $pdo->beginTransaction();
-        
+
         // Check if assignment already exists
         $checkStmt = $pdo->prepare("SELECT id FROM patient_assignments WHERE patient_id = ?");
         $checkStmt->execute([$patientId]);
@@ -618,10 +679,12 @@ function assignPatientToClinicalInstructor($patientId, $codUserId, $clinicalInst
 }
 
 // Get patients assigned to a Clinical Instructor
-function getClinicalInstructorPatients($clinicalInstructorId, $search = '', $statusFilter = 'all') {
+function getClinicalInstructorPatients($clinicalInstructorId, $search = '', $statusFilter = 'all')
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     $sql = "SELECT 
                 p.id,
@@ -645,7 +708,7 @@ function getClinicalInstructorPatients($clinicalInstructorId, $search = '', $sta
             JOIN patient_assignments pa ON p.id = pa.patient_id
             LEFT JOIN patient_approvals papp ON pa.id = papp.assignment_id
             WHERE pa.clinical_instructor_id = ?";
-    
+
     $params = [$clinicalInstructorId];
 
     if (!empty($search)) {
@@ -680,14 +743,16 @@ function getClinicalInstructorPatients($clinicalInstructorId, $search = '', $sta
 }
 
 // Clinical Instructor approval function
-function updatePatientApproval($assignmentId, $clinicalInstructorId, $approvalStatus, $approvalNotes = '') {
+function updatePatientApproval($assignmentId, $clinicalInstructorId, $approvalStatus, $approvalNotes = '')
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     try {
         $pdo->beginTransaction();
-        
+
         // Check if approval record exists
         $checkStmt = $pdo->prepare("
             SELECT id FROM patient_approvals 
@@ -695,7 +760,7 @@ function updatePatientApproval($assignmentId, $clinicalInstructorId, $approvalSt
         ");
         $checkStmt->execute([$assignmentId, $clinicalInstructorId]);
         $existingApproval = $checkStmt->fetch();
-        
+
         if ($existingApproval) {
             // Update existing approval record
             $stmt = $pdo->prepare("
@@ -726,7 +791,7 @@ function updatePatientApproval($assignmentId, $clinicalInstructorId, $approvalSt
                 WHERE pa.id = ?
             ");
             $patientStmt->execute([$assignmentId]);
-            
+
             // Update assignment status
             $assignmentStmt = $pdo->prepare("
                 UPDATE patient_assignments 
@@ -755,10 +820,12 @@ function updatePatientApproval($assignmentId, $clinicalInstructorId, $approvalSt
 }
 
 // Update patient status by Clinical Instructor (only for assigned patients)
-function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructorId, $newStatus) {
+function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructorId, $newStatus)
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     // Validate status values
     $validStatuses = ['Pending', 'Approved', 'Disapproved'];
@@ -769,7 +836,7 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
 
     try {
         $pdo->beginTransaction();
-        
+
         // First, verify that this patient is assigned to this Clinical Instructor (accepted OR completed)
         $checkStmt = $pdo->prepare("
             SELECT pa.id as assignment_id, p.status as current_status, pa.assignment_status
@@ -781,13 +848,13 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
         ");
         $checkStmt->execute([$patientId, $clinicalInstructorId]);
         $assignment = $checkStmt->fetch();
-        
+
         if (!$assignment) {
             $pdo->rollBack();
             error_log("Clinical Instructor $clinicalInstructorId not authorized to update patient $patientId");
             return false;
         }
-        
+
         // Update the patient status
         $updateStmt = $pdo->prepare("
             UPDATE patients 
@@ -795,12 +862,12 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
             WHERE id = ?
         ");
         $result = $updateStmt->execute([$newStatus, $patientId]);
-        
+
         if ($result) {
             // Update or create approval record based on status
             $approvalStatus = '';
             $approvalNotes = "Status updated directly to $newStatus by Clinical Instructor";
-            
+
             if ($newStatus === 'Approved') {
                 $approvalStatus = 'approved';
             } elseif ($newStatus === 'Disapproved') {
@@ -808,7 +875,7 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
             } else {
                 $approvalStatus = 'pending';
             }
-            
+
             // Check if approval record exists
             $approvalCheckStmt = $pdo->prepare("
                 SELECT id FROM patient_approvals 
@@ -816,7 +883,7 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
             ");
             $approvalCheckStmt->execute([$assignment['assignment_id'], $clinicalInstructorId]);
             $existingApproval = $approvalCheckStmt->fetch();
-            
+
             if ($existingApproval) {
                 // Update existing approval
                 $approvalUpdateStmt = $pdo->prepare("
@@ -837,7 +904,7 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
                 ");
                 $approvalInsertStmt->execute([$patientId, $assignment['assignment_id'], $clinicalInstructorId, $approvalStatus, $approvalNotes]);
             }
-            
+
             // Update assignment status based on new patient status
             if ($newStatus === 'Approved' || $newStatus === 'Disapproved') {
                 // Mark as completed when final decision is made
@@ -857,7 +924,7 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
                 $assignmentUpdateStmt->execute([$assignment['assignment_id']]);
             }
         }
-        
+
         $pdo->commit();
         return $result;
     } catch (PDOException $e) {
@@ -868,10 +935,12 @@ function updatePatientStatusByClinicalInstructor($patientId, $clinicalInstructor
 }
 
 // Get COD dashboard statistics
-function getCODDashboardStats($codUserId) {
+function getCODDashboardStats($codUserId)
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     try {
         $stats = [];
@@ -933,11 +1002,13 @@ function getCODDashboardStats($codUserId) {
 }
 
 // Get assigned Clinical Instructor for a patient (based on COD assignment)
-function getAssignedClinicalInstructor($patientId) {
+function getAssignedClinicalInstructor($patientId)
+{
     global $pdo;
-    
-    if (!$pdo) return null;
-    
+
+    if (!$pdo)
+        return null;
+
     try {
         // Get the Clinical Instructor assigned to this patient by COD
         $stmt = $pdo->prepare("
@@ -950,7 +1021,7 @@ function getAssignedClinicalInstructor($patientId) {
         ");
         $stmt->execute([$patientId]);
         $result = $stmt->fetch();
-        
+
         return $result ? $result['full_name'] : null;
     } catch (PDOException $e) {
         error_log("Error getting assigned Clinical Instructor: " . $e->getMessage());
@@ -959,10 +1030,12 @@ function getAssignedClinicalInstructor($patientId) {
 }
 
 // Get pending patient assignments for Clinical Instructor
-function getCIPendingAssignments($clinicalInstructorId, $search = '') {
+function getCIPendingAssignments($clinicalInstructorId, $search = '')
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     $sql = "SELECT 
                 p.id,
@@ -986,7 +1059,7 @@ function getCIPendingAssignments($clinicalInstructorId, $search = '') {
             LEFT JOIN users u_cod ON pa.cod_user_id = u_cod.id
             WHERE pa.clinical_instructor_id = ?
             AND pa.assignment_status = 'pending'";
-    
+
     $params = [$clinicalInstructorId];
 
     if (!empty($search)) {
@@ -1012,10 +1085,12 @@ function getCIPendingAssignments($clinicalInstructorId, $search = '') {
 }
 
 // Update patient assignment status (accept/deny by Clinical Instructor)
-function updateAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $notes = '') {
+function updateAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $notes = '')
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     // Validate status
     $validStatuses = ['accepted', 'rejected'];
@@ -1026,7 +1101,7 @@ function updateAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $
 
     try {
         $pdo->beginTransaction();
-        
+
         // Verify assignment belongs to this CI
         $checkStmt = $pdo->prepare("
             SELECT pa.id, pa.patient_id, pa.assignment_status 
@@ -1035,7 +1110,7 @@ function updateAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $
         ");
         $checkStmt->execute([$assignmentId, $clinicalInstructorId]);
         $assignment = $checkStmt->fetch();
-        
+
         if (!$assignment) {
             $pdo->rollBack();
             error_log("Assignment $assignmentId not found or not assigned to CI $clinicalInstructorId");
@@ -1051,7 +1126,7 @@ function updateAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $
             WHERE id = ?
         ");
         $result = $updateStmt->execute([$status, $notes, $assignmentId]);
-        
+
         if ($result && $status === 'accepted') {
             // Create or update approval record when accepted
             $approvalStmt = $pdo->prepare("
@@ -1079,11 +1154,13 @@ function updateAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $
 }
 
 // Profile management functions
-function updateProfilePicture($userId, $profilePicturePath) {
+function updateProfilePicture($userId, $profilePicturePath)
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         $stmt = $pdo->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
         return $stmt->execute([$profilePicturePath, $userId]);
@@ -1093,11 +1170,13 @@ function updateProfilePicture($userId, $profilePicturePath) {
     }
 }
 
-function getProfilePicture($userId) {
+function getProfilePicture($userId)
+{
     global $pdo;
-    
-    if (!$pdo) return null;
-    
+
+    if (!$pdo)
+        return null;
+
     try {
         $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ?");
         $stmt->execute([$userId]);
@@ -1109,36 +1188,37 @@ function getProfilePicture($userId) {
     }
 }
 
-function uploadProfilePicture($file, $userId) {
+function uploadProfilePicture($file, $userId)
+{
     // Validate file
     if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
         return ['success' => false, 'message' => 'No file uploaded or invalid file.'];
     }
-    
+
     // Check file size (max 5MB)
     $maxSize = 5 * 1024 * 1024; // 5MB
     if ($file['size'] > $maxSize) {
         return ['success' => false, 'message' => 'File size too large. Maximum 5MB allowed.'];
     }
-    
+
     // Check file type
     $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     $fileType = mime_content_type($file['tmp_name']);
     if (!in_array($fileType, $allowedTypes)) {
         return ['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, GIF, and WebP images are allowed.'];
     }
-    
+
     // Create unique filename
     $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
     $filename = 'profile_' . $userId . '_' . time() . '.' . $extension;
     $uploadDir = __DIR__ . '/uploads/profile_photos/';
     $uploadPath = $uploadDir . $filename;
-    
+
     // Create directory if it doesn't exist
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
-    
+
     // Move uploaded file
     if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
         // Remove old profile picture if exists
@@ -1146,7 +1226,7 @@ function uploadProfilePicture($file, $userId) {
         if ($oldPicture && file_exists(__DIR__ . '/' . $oldPicture)) {
             unlink(__DIR__ . '/' . $oldPicture);
         }
-        
+
         // Update database
         $relativePath = 'uploads/profile_photos/' . $filename;
         if (updateProfilePicture($userId, $relativePath)) {
@@ -1161,24 +1241,26 @@ function uploadProfilePicture($file, $userId) {
     }
 }
 
-function deleteProfilePicture($userId) {
+function deleteProfilePicture($userId)
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         // Get current profile picture path
         $currentPicture = getProfilePicture($userId);
-        
+
         // Remove from database
         $stmt = $pdo->prepare("UPDATE users SET profile_picture = NULL WHERE id = ?");
         $success = $stmt->execute([$userId]);
-        
+
         // Remove file if database update was successful
         if ($success && $currentPicture && file_exists(__DIR__ . '/' . $currentPicture)) {
             unlink(__DIR__ . '/' . $currentPicture);
         }
-        
+
         return $success;
     } catch (PDOException $e) {
         error_log("Error deleting profile picture: " . $e->getMessage());
@@ -1186,7 +1268,8 @@ function deleteProfilePicture($userId) {
     }
 }
 
-function getUserRoleActions($role) {
+function getUserRoleActions($role)
+{
     $actions = [
         'Admin' => [
             'Manage all users in the system',
@@ -1221,16 +1304,18 @@ function getUserRoleActions($role) {
             'Manage Clinical Instructor workloads'
         ]
     ];
-    
+
     return $actions[$role] ?? [];
 }
 
 // User profile management functions
-function updateUserFullName($userId, $newFullName) {
+function updateUserFullName($userId, $newFullName)
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         $stmt = $pdo->prepare("UPDATE users SET full_name = ? WHERE id = ?");
         return $stmt->execute([$newFullName, $userId]);
@@ -1240,9 +1325,10 @@ function updateUserFullName($userId, $newFullName) {
     }
 }
 
-function validateFullName($fullName) {
+function validateFullName($fullName)
+{
     $errors = [];
-    
+
     if (empty(trim($fullName))) {
         $errors[] = 'Full name cannot be empty.';
     } elseif (strlen(trim($fullName)) < 2) {
@@ -1252,29 +1338,30 @@ function validateFullName($fullName) {
     } elseif (!preg_match('/^[a-zA-Z\s.-]+$/', trim($fullName))) {
         $errors[] = 'Full name can only contain letters, spaces, dots, and hyphens.';
     }
-    
+
     return $errors;
 }
 
-function validatePassword($currentPassword, $newPassword, $confirmPassword, $userHashedPassword) {
+function validatePassword($currentPassword, $newPassword, $confirmPassword, $userHashedPassword)
+{
     $errors = [];
-    
+
     if (!password_verify($currentPassword, $userHashedPassword)) {
         $errors[] = 'Current password is incorrect.';
-    } 
-    
+    }
+
     if ($newPassword !== $confirmPassword) {
         $errors[] = 'New passwords do not match.';
     }
-    
+
     if (strlen($newPassword) < 6) {
         $errors[] = 'New password must be at least 6 characters long.';
     }
-    
+
     if (strlen($newPassword) > 255) {
         $errors[] = 'New password is too long.';
     }
-    
+
     return $errors;
 }
 
@@ -1283,11 +1370,13 @@ function validatePassword($currentPassword, $newPassword, $confirmPassword, $use
 // ========================================================
 
 // Get online Clinical Instructors with their current patient counts
-function getOnlineClinicalInstructors() {
+function getOnlineClinicalInstructors()
+{
     global $pdo;
-    
-    if (!$pdo) return [];
-    
+
+    if (!$pdo)
+        return [];
+
     try {
         // Query to get users marked as online in the database
         // We trust the connection_status field as the source of truth
@@ -1313,11 +1402,11 @@ function getOnlineClinicalInstructors() {
                     AND u.account_status = 'active'
                     AND u.connection_status = 'online'
                 ORDER BY current_patient_count ASC, u.full_name ASC";
-        
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
         $instructors = $stmt->fetchAll();
-        
+
         // Process instructors and handle stale connections
         $filteredInstructors = [];
         foreach ($instructors as $instructor) {
@@ -1329,12 +1418,12 @@ function getOnlineClinicalInstructors() {
                 error_log("Auto-logged out CI ID {$instructor['id']} ({$instructor['full_name']}) due to inactivity: {$instructor['minutes_since_activity']} minutes");
                 continue; // Skip this user
             }
-            
+
             // User is online and recently active (or just logged in), include them
             $instructor['online_status'] = 'online';
             $filteredInstructors[] = $instructor;
         }
-        
+
         return $filteredInstructors;
     } catch (PDOException $e) {
         error_log("Error getting online Clinical Instructors: " . $e->getMessage());
@@ -1344,32 +1433,33 @@ function getOnlineClinicalInstructors() {
 
 // Function to check if user is actually online based on activity timeout
 // This is a simplified version that trusts the connection_status field
-function isUserActuallyOnline($userData, $timeoutMinutes = 10) {
+function isUserActuallyOnline($userData, $timeoutMinutes = 10)
+{
     if (!$userData) {
         return false;
     }
-    
+
     // If connection_status is offline, user is offline
     if ($userData['connection_status'] === 'offline') {
         return false;
     }
-    
+
     // If connection_status is online, check last activity
     if ($userData['connection_status'] === 'online') {
         // If no last activity, assume they just came online
         if (!$userData['last_activity']) {
             return true;
         }
-        
+
         try {
             // Use database time for consistency
             global $pdo;
             $stmt = $pdo->prepare("SELECT TIMESTAMPDIFF(MINUTE, ?, NOW()) as minutes_diff");
             $stmt->execute([$userData['last_activity']]);
             $result = $stmt->fetch();
-            
+
             $minutesDiff = $result['minutes_diff'] ?? 0;
-            
+
             // Consider online if activity within timeout period
             return $minutesDiff <= $timeoutMinutes;
         } catch (Exception $e) {
@@ -1378,16 +1468,18 @@ function isUserActuallyOnline($userData, $timeoutMinutes = 10) {
             return true; // Assume online on error to avoid hiding active users
         }
     }
-    
+
     return false;
 }
 
 // Fallback function for basic CI retrieval
-function getOnlineClinicalInstructorsBasic() {
+function getOnlineClinicalInstructorsBasic()
+{
     global $pdo;
-    
-    if (!$pdo) return [];
-    
+
+    if (!$pdo)
+        return [];
+
     try {
         $sql = "SELECT 
                     u.id,
@@ -1402,11 +1494,11 @@ function getOnlineClinicalInstructorsBasic() {
                     AND u.account_status = 'active' 
                     AND u.connection_status = 'online'
                 ORDER BY u.full_name ASC";
-        
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
         $instructors = $stmt->fetchAll();
-        
+
         $filteredInstructors = [];
         foreach ($instructors as $instructor) {
             $onlineStatus = getUserOnlineStatus($instructor);
@@ -1415,7 +1507,7 @@ function getOnlineClinicalInstructorsBasic() {
                 $filteredInstructors[] = $instructor;
             }
         }
-        
+
         return $filteredInstructors;
     } catch (PDOException $e) {
         error_log("Error in basic CI retrieval: " . $e->getMessage());
@@ -1424,11 +1516,13 @@ function getOnlineClinicalInstructorsBasic() {
 }
 
 // Function to clean up offline users
-function cleanupOfflineUsers() {
+function cleanupOfflineUsers()
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         // Call the stored procedure if it exists
         $stmt = $pdo->prepare("CALL CleanupOfflineUsers()");
@@ -1453,16 +1547,18 @@ function cleanupOfflineUsers() {
             return false;
         }
     }
-    
+
     return false;
 }
 
 // Get all Clinical Instructors (for dropdown) with current patient counts
-function getAllClinicalInstructorsWithCounts() {
+function getAllClinicalInstructorsWithCounts()
+{
     global $pdo;
-    
-    if (!$pdo) return [];
-    
+
+    if (!$pdo)
+        return [];
+
     try {
         $sql = "SELECT 
                     u.id,
@@ -1478,16 +1574,16 @@ function getAllClinicalInstructorsWithCounts() {
                     AND u.account_status = 'active'
                 GROUP BY u.id, u.full_name, u.email, u.specialty_hint, u.connection_status, u.last_activity
                 ORDER BY u.full_name ASC";
-        
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
         $instructors = $stmt->fetchAll();
-        
+
         // Add online status for each instructor
         foreach ($instructors as &$instructor) {
             $instructor['online_status'] = getUserOnlineStatus($instructor);
         }
-        
+
         return $instructors;
     } catch (PDOException $e) {
         error_log("Error getting all Clinical Instructors with counts: " . $e->getMessage());
@@ -1496,14 +1592,16 @@ function getAllClinicalInstructorsWithCounts() {
 }
 
 // Automatically assign patient to the CI with least patients (load balancing)
-function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $notes = '', $treatmentHint = '') {
+function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $notes = '', $treatmentHint = '')
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         $pdo->beginTransaction();
-        
+
         // First try to find online CIs with matching procedure details
         $bestCI = null;
         if (!empty($treatmentHint)) {
@@ -1529,13 +1627,13 @@ function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $note
                     GROUP BY u.id, u.full_name, u.specialty_hint
                     ORDER BY current_patient_count ASC, RAND()
                     LIMIT 1";
-            
+
             $stmt = $pdo->prepare($sql);
             $treatmentPattern = "%$treatmentHint%";
             $stmt->execute([$treatmentPattern, $treatmentPattern]);
             $bestCI = $stmt->fetch();
         }
-        
+
         // If no matching procedure details CI found, get any online CI with least patients
         if (!$bestCI) {
             $sql = "SELECT 
@@ -1555,27 +1653,27 @@ function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $note
                     GROUP BY u.id, u.full_name, u.specialty_hint
                     ORDER BY current_patient_count ASC, RAND()
                     LIMIT 1";
-            
+
             $stmt = $pdo->prepare($sql);
             $stmt->execute();
             $bestCI = $stmt->fetch();
         }
-        
+
         if (!$bestCI) {
             $pdo->rollBack();
             return ['success' => false, 'message' => 'No online Clinical Instructors available for assignment.'];
         }
-        
+
         // Check if assignment already exists
         $checkStmt = $pdo->prepare("SELECT id FROM patient_assignments WHERE patient_id = ?");
         $checkStmt->execute([$patientId]);
         $existingAssignment = $checkStmt->fetch();
-        
+
         $autoNotes = "Auto-assigned to CI with lowest patient count" . (!empty($notes) ? ". " . $notes : "");
         if (!empty($bestCI['specialty_hint']) && !empty($treatmentHint)) {
             $autoNotes .= " (Procedure details match: {$bestCI['specialty_hint']} for {$treatmentHint})";
         }
-        
+
         if ($existingAssignment) {
             // Update existing assignment
             $stmt = $pdo->prepare("
@@ -1599,7 +1697,7 @@ function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $note
             $result = $stmt->execute([$patientId, $codUserId, $bestCI['id'], $autoNotes]);
             $assignmentId = $pdo->lastInsertId();
         }
-        
+
         if ($result) {
             // Create or update approval record
             $approvalStmt = $pdo->prepare("
@@ -1613,11 +1711,11 @@ function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $note
             ");
             $approvalStmt->execute([$patientId, $assignmentId, $bestCI['id']]);
         }
-        
+
         $pdo->commit();
         return [
-            'success' => true, 
-            'message' => 'Patient automatically assigned successfully.', 
+            'success' => true,
+            'message' => 'Patient automatically assigned successfully.',
             'assigned_to' => $bestCI['full_name'],
             'ci_id' => $bestCI['id'],
             'patient_count' => $bestCI['current_patient_count'] + 1
@@ -1630,11 +1728,13 @@ function autoAssignPatientToBestClinicalInstructor($patientId, $codUserId, $note
 }
 
 // Add CI to available pool (manual addition by COD)
-function addCIToAssignmentPool($ciId) {
+function addCIToAssignmentPool($ciId)
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         // Verify CI exists and is active
         $stmt = $pdo->prepare("
@@ -1643,7 +1743,7 @@ function addCIToAssignmentPool($ciId) {
         ");
         $stmt->execute([$ciId]);
         $ci = $stmt->fetch();
-        
+
         if ($ci) {
             // Set CI as online (optional - COD can manually add them to pool)
             setUserOnlineStatus($ciId, 'online');
@@ -1662,14 +1762,16 @@ function addCIToAssignmentPool($ciId) {
 // =========================================================
 
 // Create a patient transfer request from one CI to another
-function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toCIId, $transferReason = '') {
+function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toCIId, $transferReason = '')
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         $pdo->beginTransaction();
-        
+
         // Verify the requesting CI owns this assignment
         $checkStmt = $pdo->prepare("
             SELECT id, clinical_instructor_id, assignment_status
@@ -1678,12 +1780,12 @@ function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toC
         ");
         $checkStmt->execute([$assignmentId, $fromCIId]);
         $assignment = $checkStmt->fetch();
-        
+
         if (!$assignment) {
             $pdo->rollBack();
             return ['success' => false, 'message' => 'Assignment not found or not assigned to you.'];
         }
-        
+
         // Check if there's already a pending transfer for this patient
         $pendingCheckStmt = $pdo->prepare("
             SELECT id FROM patient_transfers
@@ -1694,7 +1796,7 @@ function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toC
             $pdo->rollBack();
             return ['success' => false, 'message' => 'There is already a pending transfer request for this patient.'];
         }
-        
+
         // Verify target CI exists and is active
         $ciCheckStmt = $pdo->prepare("
             SELECT id, full_name FROM users
@@ -1702,12 +1804,12 @@ function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toC
         ");
         $ciCheckStmt->execute([$toCIId]);
         $targetCI = $ciCheckStmt->fetch();
-        
+
         if (!$targetCI) {
             $pdo->rollBack();
             return ['success' => false, 'message' => 'Target Clinical Instructor not found or not active.'];
         }
-        
+
         // Create transfer request
         $insertStmt = $pdo->prepare("
             INSERT INTO patient_transfers 
@@ -1715,12 +1817,12 @@ function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toC
             VALUES (?, ?, ?, ?, 'pending', ?)
         ");
         $result = $insertStmt->execute([$patientId, $assignmentId, $fromCIId, $toCIId, $transferReason]);
-        
+
         $pdo->commit();
-        
+
         if ($result) {
             return [
-                'success' => true, 
+                'success' => true,
                 'message' => "Transfer request sent to {$targetCI['full_name']} successfully!",
                 'transfer_id' => $pdo->lastInsertId()
             ];
@@ -1738,19 +1840,21 @@ function createPatientTransferRequest($patientId, $assignmentId, $fromCIId, $toC
 }
 
 // Respond to a transfer request (accept or reject)
-function respondToTransferRequest($transferId, $toCIId, $action, $responseNotes = '') {
+function respondToTransferRequest($transferId, $toCIId, $action, $responseNotes = '')
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     // Validate action
     if (!in_array($action, ['accept', 'reject'])) {
         return ['success' => false, 'message' => 'Invalid action. Must be accept or reject.'];
     }
-    
+
     try {
         $pdo->beginTransaction();
-        
+
         // Verify transfer exists and is pending
         $checkStmt = $pdo->prepare("
             SELECT 
@@ -1766,27 +1870,27 @@ function respondToTransferRequest($transferId, $toCIId, $action, $responseNotes 
         ");
         $checkStmt->execute([$transferId, $toCIId]);
         $transfer = $checkStmt->fetch();
-        
+
         if (!$transfer) {
             $pdo->rollBack();
             return ['success' => false, 'message' => 'Transfer request not found or not assigned to you.'];
         }
-        
+
         if ($transfer['transfer_status'] !== 'pending') {
             $pdo->rollBack();
             return ['success' => false, 'message' => 'This transfer request is no longer pending.'];
         }
-        
+
         if ($action === 'accept') {
             // Use stored procedure to accept transfer
             $stmt = $pdo->prepare("CALL AcceptPatientTransfer(?, ?)");
             $result = $stmt->execute([$transferId, $responseNotes]);
-            
+
             // Commit if transaction is still active
             if ($pdo->inTransaction()) {
                 $pdo->commit();
             }
-            
+
             return [
                 'success' => true,
                 'message' => "Patient {$transfer['first_name']} {$transfer['last_name']} has been successfully transferred to you!",
@@ -1796,12 +1900,12 @@ function respondToTransferRequest($transferId, $toCIId, $action, $responseNotes 
             // Use stored procedure to reject transfer
             $stmt = $pdo->prepare("CALL RejectPatientTransfer(?, ?)");
             $result = $stmt->execute([$transferId, $responseNotes]);
-            
+
             // Commit if transaction is still active
             if ($pdo->inTransaction()) {
                 $pdo->commit();
             }
-            
+
             return [
                 'success' => true,
                 'message' => "Transfer request from {$transfer['from_ci_name']} has been rejected.",
@@ -1819,16 +1923,18 @@ function respondToTransferRequest($transferId, $toCIId, $action, $responseNotes 
 }
 
 // Cancel a transfer request (by the sender)
-function cancelTransferRequest($transferId, $fromCIId) {
+function cancelTransferRequest($transferId, $fromCIId)
+{
     global $pdo;
-    
-    if (!$pdo) return false;
-    
+
+    if (!$pdo)
+        return false;
+
     try {
         // Use stored procedure to cancel transfer
         $stmt = $pdo->prepare("CALL CancelPatientTransfer(?, ?)");
         $result = $stmt->execute([$transferId, $fromCIId]);
-        
+
         if ($result) {
             return ['success' => true, 'message' => 'Transfer request has been cancelled successfully.'];
         } else {
@@ -1836,24 +1942,26 @@ function cancelTransferRequest($transferId, $fromCIId) {
         }
     } catch (PDOException $e) {
         error_log("Error cancelling transfer request: " . $e->getMessage());
-        
+
         // Check if error is from stored procedure validation
         if (strpos($e->getMessage(), 'Only the requesting CI') !== false) {
             return ['success' => false, 'message' => 'You can only cancel your own transfer requests.'];
         } elseif (strpos($e->getMessage(), 'Only pending transfers') !== false) {
             return ['success' => false, 'message' => 'Only pending transfers can be cancelled.'];
         }
-        
+
         return ['success' => false, 'message' => 'Database error occurred while cancelling transfer.'];
     }
 }
 
 // Get incoming transfer requests for a CI (transfers TO this CI)
-function getIncomingTransferRequests($toCIId, $statusFilter = 'pending') {
+function getIncomingTransferRequests($toCIId, $statusFilter = 'pending')
+{
     global $pdo;
-    
-    if (!$pdo) return [];
-    
+
+    if (!$pdo)
+        return [];
+
     $sql = "SELECT 
                 pt.id as transfer_id,
                 pt.patient_id,
@@ -1877,16 +1985,16 @@ function getIncomingTransferRequests($toCIId, $statusFilter = 'pending') {
             JOIN users u_from ON pt.from_clinical_instructor_id = u_from.id
             JOIN patient_assignments pa ON pt.assignment_id = pa.id
             WHERE pt.to_clinical_instructor_id = ?";
-    
+
     $params = [$toCIId];
-    
+
     if ($statusFilter !== 'all') {
         $sql .= " AND pt.transfer_status = ?";
         $params[] = $statusFilter;
     }
-    
+
     $sql .= " ORDER BY pt.requested_at DESC";
-    
+
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -1898,11 +2006,13 @@ function getIncomingTransferRequests($toCIId, $statusFilter = 'pending') {
 }
 
 // Get outgoing transfer requests from a CI (transfers FROM this CI)
-function getOutgoingTransferRequests($fromCIId, $statusFilter = 'pending') {
+function getOutgoingTransferRequests($fromCIId, $statusFilter = 'pending')
+{
     global $pdo;
-    
-    if (!$pdo) return [];
-    
+
+    if (!$pdo)
+        return [];
+
     $sql = "SELECT 
                 pt.id as transfer_id,
                 pt.patient_id,
@@ -1926,16 +2036,16 @@ function getOutgoingTransferRequests($fromCIId, $statusFilter = 'pending') {
             JOIN users u_to ON pt.to_clinical_instructor_id = u_to.id
             JOIN patient_assignments pa ON pt.assignment_id = pa.id
             WHERE pt.from_clinical_instructor_id = ?";
-    
+
     $params = [$fromCIId];
-    
+
     if ($statusFilter !== 'all') {
         $sql .= " AND pt.transfer_status = ?";
         $params[] = $statusFilter;
     }
-    
+
     $sql .= " ORDER BY pt.requested_at DESC";
-    
+
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -1947,11 +2057,13 @@ function getOutgoingTransferRequests($fromCIId, $statusFilter = 'pending') {
 }
 
 // Get all available CIs for transfer (excluding self)
-function getAvailableCIsForTransfer($currentCIId) {
+function getAvailableCIsForTransfer($currentCIId)
+{
     global $pdo;
-    
-    if (!$pdo) return [];
-    
+
+    if (!$pdo)
+        return [];
+
     $sql = "SELECT 
                 u.id,
                 u.full_name,
@@ -1967,17 +2079,17 @@ function getAvailableCIsForTransfer($currentCIId) {
                 AND u.id != ?
             GROUP BY u.id, u.full_name, u.email, u.specialty_hint, u.connection_status, u.last_activity
             ORDER BY current_patient_count ASC, u.full_name ASC";
-    
+
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$currentCIId]);
         $instructors = $stmt->fetchAll();
-        
+
         // Add online status for each instructor
         foreach ($instructors as &$instructor) {
             $instructor['online_status'] = getUserOnlineStatus($instructor);
         }
-        
+
         return $instructors;
     } catch (PDOException $e) {
         error_log("Error getting available CIs for transfer: " . $e->getMessage());
@@ -1986,11 +2098,13 @@ function getAvailableCIsForTransfer($currentCIId) {
 }
 
 // Get transfer request counts for a CI
-function getTransferRequestCounts($ciId) {
+function getTransferRequestCounts($ciId)
+{
     global $pdo;
-    
-    if (!$pdo) return ['incoming_pending' => 0, 'outgoing_pending' => 0];
-    
+
+    if (!$pdo)
+        return ['incoming_pending' => 0, 'outgoing_pending' => 0];
+
     try {
         $stmt = $pdo->prepare("
             SELECT 
@@ -2011,10 +2125,12 @@ function getTransferRequestCounts($ciId) {
 // ========================================================
 
 // Get procedure logs for COD with assignment details
-function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', $assignmentStatus = 'all', $page = 1, $itemsPerPage = 0) {
+function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', $assignmentStatus = 'all', $page = 1, $itemsPerPage = 0)
+{
     global $pdo;
 
-    if (!$pdo) return ['procedures' => [], 'total' => 0];
+    if (!$pdo)
+        return ['procedures' => [], 'total' => 0];
 
     $sql = "SELECT 
                 pl.id as procedure_log_id,
@@ -2042,7 +2158,7 @@ function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', 
             LEFT JOIN procedure_assignments pra ON pl.id = pra.procedure_log_id
             LEFT JOIN users u_ci ON pra.clinical_instructor_id = u_ci.id
             WHERE 1=1";
-    
+
     // Count query for total records
     $countSql = "SELECT COUNT(DISTINCT pl.id) as total
             FROM procedure_logs pl
@@ -2050,7 +2166,7 @@ function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', 
             LEFT JOIN procedure_assignments pra ON pl.id = pra.procedure_log_id
             LEFT JOIN users u_ci ON pra.clinical_instructor_id = u_ci.id
             WHERE 1=1";
-    
+
     $params = [];
 
     if (!empty($search)) {
@@ -2093,7 +2209,7 @@ function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', 
     }
 
     $sql .= " ORDER BY pl.logged_at DESC";
-    
+
     // Add pagination if itemsPerPage > 0
     if ($itemsPerPage > 0) {
         $offset = ($page - 1) * $itemsPerPage;
@@ -2105,7 +2221,7 @@ function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', 
         $countStmt = $pdo->prepare($countSql);
         $countStmt->execute($params);
         $totalRecords = $countStmt->fetch()['total'];
-        
+
         // Get paginated results
         $stmt = $pdo->prepare($sql);
         if ($itemsPerPage > 0) {
@@ -2114,9 +2230,9 @@ function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', 
         } else {
             $stmt->execute($params);
         }
-        
+
         $procedures = $stmt->fetchAll();
-        
+
         return [
             'procedures' => $procedures,
             'total' => $totalRecords
@@ -2128,55 +2244,59 @@ function getCODProcedureAssignments($search = '', $dateFrom = '', $dateTo = '', 
 }
 
 // Auto-assign procedure to best available Clinical Instructor
-function autoAssignProcedureToBestCI($procedureLogId, $codUserId, $procedureDetails = '', $notes = '') {
+function autoAssignProcedureToBestCI($procedureLogId, $codUserId, $procedureDetails = '', $notes = '')
+{
     global $pdo;
-    
-    if (!$pdo) return ['success' => false, 'message' => 'Database connection failed'];
-    
+
+    if (!$pdo)
+        return ['success' => false, 'message' => 'Database connection failed'];
+
     try {
         // Get online Clinical Instructors with their current workload
         $onlineCIs = getOnlineClinicalInstructors();
-        
+
         if (empty($onlineCIs)) {
             return ['success' => false, 'message' => 'No Clinical Instructors are currently online'];
         }
-        
+
         // Find best match based on specialty and workload
         $bestCI = null;
         $bestScore = -1;
-        
+
         foreach ($onlineCIs as $ci) {
             $score = 0;
-            
+
             // Lower patient count = higher score
             $score += (10 - min($ci['current_patient_count'], 10)) * 10;
-            
+
             // Specialty match bonus
             if (!empty($procedureDetails) && !empty($ci['specialty_hint'])) {
                 $procedureDetailsLower = strtolower($procedureDetails);
                 $specialtyLower = strtolower($ci['specialty_hint']);
-                
+
                 // Check for keyword matches
-                if (strpos($procedureDetailsLower, $specialtyLower) !== false || 
-                    strpos($specialtyLower, $procedureDetailsLower) !== false) {
+                if (
+                    strpos($procedureDetailsLower, $specialtyLower) !== false ||
+                    strpos($specialtyLower, $procedureDetailsLower) !== false
+                ) {
                     $score += 50; // Bonus for specialty match
                 }
             }
-            
+
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $bestCI = $ci;
             }
         }
-        
+
         if (!$bestCI) {
             return ['success' => false, 'message' => 'Could not find suitable Clinical Instructor'];
         }
-        
+
         // Assign procedure to the best CI
         $assignmentNotes = "Auto-assigned based on specialty match and workload. " . ($notes ?: '');
         $result = assignProcedureToClinicalInstructor($procedureLogId, $codUserId, $bestCI['id'], $assignmentNotes);
-        
+
         if ($result) {
             return [
                 'success' => true,
@@ -2194,14 +2314,16 @@ function autoAssignProcedureToBestCI($procedureLogId, $codUserId, $procedureDeta
 }
 
 // Assign procedure to Clinical Instructor (COD function)
-function assignProcedureToClinicalInstructor($procedureLogId, $codUserId, $clinicalInstructorId, $notes = '') {
+function assignProcedureToClinicalInstructor($procedureLogId, $codUserId, $clinicalInstructorId, $notes = '')
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     try {
         $pdo->beginTransaction();
-        
+
         // Check if assignment already exists
         $checkStmt = $pdo->prepare("SELECT id FROM procedure_assignments WHERE procedure_log_id = ?");
         $checkStmt->execute([$procedureLogId]);
@@ -2239,10 +2361,12 @@ function assignProcedureToClinicalInstructor($procedureLogId, $codUserId, $clini
 }
 
 // Get pending procedure assignments for Clinical Instructor
-function getCIPendingProcedureAssignments($clinicalInstructorId, $search = '') {
+function getCIPendingProcedureAssignments($clinicalInstructorId, $search = '')
+{
     global $pdo;
 
-    if (!$pdo) return [];
+    if (!$pdo)
+        return [];
 
     $sql = "SELECT 
                 pl.id as procedure_log_id,
@@ -2270,7 +2394,7 @@ function getCIPendingProcedureAssignments($clinicalInstructorId, $search = '') {
             LEFT JOIN users u_cod ON pra.cod_user_id = u_cod.id
             WHERE pra.clinical_instructor_id = ?
             AND pra.assignment_status = 'pending'";
-    
+
     $params = [$clinicalInstructorId];
 
     if (!empty($search)) {
@@ -2296,10 +2420,12 @@ function getCIPendingProcedureAssignments($clinicalInstructorId, $search = '') {
 }
 
 // Update procedure assignment status (accept/deny by Clinical Instructor)
-function updateProcedureAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $notes = '') {
+function updateProcedureAssignmentStatus($assignmentId, $clinicalInstructorId, $status, $notes = '')
+{
     global $pdo;
 
-    if (!$pdo) return false;
+    if (!$pdo)
+        return false;
 
     // Validate status
     $validStatuses = ['accepted', 'rejected', 'completed'];
@@ -2310,16 +2436,19 @@ function updateProcedureAssignmentStatus($assignmentId, $clinicalInstructorId, $
 
     try {
         $pdo->beginTransaction();
-        
-        // Verify assignment belongs to this CI
+
+        // Verify assignment belongs to this CI and get procedure log details
         $checkStmt = $pdo->prepare("
-            SELECT pra.id, pra.procedure_log_id, pra.assignment_status 
+            SELECT pra.id, pra.procedure_log_id, pra.assignment_status, pra.cod_user_id,
+                   pl.patient_id, pl.patient_name, pl.procedure_selected, pl.clinician_name,
+                   pl.logged_at, pl.remarks, pl.chair_number
             FROM procedure_assignments pra
+            INNER JOIN procedure_logs pl ON pra.procedure_log_id = pl.id
             WHERE pra.id = ? AND pra.clinical_instructor_id = ?
         ");
         $checkStmt->execute([$assignmentId, $clinicalInstructorId]);
         $assignment = $checkStmt->fetch();
-        
+
         if (!$assignment) {
             $pdo->rollBack();
             error_log("Procedure assignment $assignmentId not found or not assigned to CI $clinicalInstructorId");
@@ -2335,13 +2464,256 @@ function updateProcedureAssignmentStatus($assignmentId, $clinicalInstructorId, $
             WHERE id = ?
         ");
         $result = $updateStmt->execute([$status, $notes, $assignmentId]);
-        
-        $pdo->commit();
-        return $result;
+
+        // If procedure assignment is accepted, create/update patient assignment and progress note
+        // This ensures the patient appears in the CI's patient list and progress notes are auto-generated
+        if ($result && $status === 'accepted' && !empty($assignment['patient_id'])) {
+            $patientId = $assignment['patient_id'];
+            $codUserId = $assignment['cod_user_id'] ?? null;
+            $procedureLogId = $assignment['procedure_log_id'];
+            
+            // Check if patient assignment already exists for this CI
+            $patientAssignCheckStmt = $pdo->prepare("
+                SELECT id FROM patient_assignments 
+                WHERE patient_id = ? AND clinical_instructor_id = ?
+            ");
+            $patientAssignCheckStmt->execute([$patientId, $clinicalInstructorId]);
+            $existingPatientAssignment = $patientAssignCheckStmt->fetch();
+
+            // Check if patient has assignments to other CIs that should be transferred
+            // Get ALL assignments to other CIs (regardless of status) to ensure complete transfer
+            $otherAssignmentsStmt = $pdo->prepare("
+                SELECT id, clinical_instructor_id FROM patient_assignments 
+                WHERE patient_id = ? 
+                AND clinical_instructor_id != ?
+            ");
+            $otherAssignmentsStmt->execute([$patientId, $clinicalInstructorId]);
+            $otherAssignments = $otherAssignmentsStmt->fetchAll();
+
+            $procedureNotes = "Auto-assigned via procedure acceptance: " . ($assignment['patient_name'] ?? 'Patient');
+            if (!empty($notes)) {
+                $procedureNotes .= ". " . $notes;
+            }
+
+            if ($existingPatientAssignment) {
+                // Update existing patient assignment to accepted status
+                $patientAssignUpdateStmt = $pdo->prepare("
+                    UPDATE patient_assignments 
+                    SET assignment_status = 'accepted',
+                        notes = CONCAT(IFNULL(notes, ''), '\n', ?),
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $patientAssignUpdateStmt->execute([$procedureNotes, $existingPatientAssignment['id']]);
+                $patientAssignmentId = $existingPatientAssignment['id'];
+            } else {
+                // If patient has assignments to other CIs, UPDATE the most recent one to point to the new CI
+                // This ensures there's only one active assignment per patient
+                if (!empty($otherAssignments)) {
+                    // Get the most recent assignment to any other CI
+                    $mostRecentStmt = $pdo->prepare("
+                        SELECT id FROM patient_assignments 
+                        WHERE patient_id = ? 
+                        AND clinical_instructor_id != ?
+                        ORDER BY assigned_at DESC, updated_at DESC, id DESC
+                        LIMIT 1
+                    ");
+                    $mostRecentStmt->execute([$patientId, $clinicalInstructorId]);
+                    $mostRecentAssignment = $mostRecentStmt->fetch();
+                    
+                    if ($mostRecentAssignment) {
+                        // Update the existing assignment to point to the new CI
+                        $transferStmt = $pdo->prepare("
+                            UPDATE patient_assignments 
+                            SET clinical_instructor_id = ?,
+                                assignment_status = 'accepted',
+                                cod_user_id = ?,
+                                notes = CONCAT(IFNULL(notes, ''), '\n', 'Transferred to new CI via procedure acceptance: ', ?),
+                                assigned_at = NOW(),
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        $transferStmt->execute([
+                            $clinicalInstructorId,
+                            $codUserId,
+                            $procedureNotes,
+                            $mostRecentAssignment['id']
+                        ]);
+                        $patientAssignmentId = $mostRecentAssignment['id'];
+                        
+                        // Mark any remaining old assignments as 'rejected' (not shown in getPatients)
+                        foreach ($otherAssignments as $otherAssignment) {
+                            if ($otherAssignment['id'] != $mostRecentAssignment['id']) {
+                                $updateOtherStmt = $pdo->prepare("
+                                    UPDATE patient_assignments 
+                                    SET assignment_status = 'rejected',
+                                        notes = CONCAT(IFNULL(notes, ''), '\n', 'Patient reassigned to another CI via procedure acceptance'),
+                                        updated_at = NOW()
+                                    WHERE id = ?
+                                ");
+                                $updateOtherStmt->execute([$otherAssignment['id']]);
+                            }
+                        }
+                    } else {
+                        // Fallback: Create new patient assignment if no existing assignment found
+                        $patientAssignInsertStmt = $pdo->prepare("
+                            INSERT INTO patient_assignments 
+                            (patient_id, cod_user_id, clinical_instructor_id, assignment_status, notes, assigned_at, created_at, updated_at)
+                            VALUES (?, ?, ?, 'accepted', ?, NOW(), NOW(), NOW())
+                        ");
+                        $patientAssignInsertStmt->execute([
+                            $patientId, 
+                            $codUserId, 
+                            $clinicalInstructorId, 
+                            $procedureNotes
+                        ]);
+                        $patientAssignmentId = $pdo->lastInsertId();
+                    }
+                } else {
+                    // No existing assignments, create new one
+                    $patientAssignInsertStmt = $pdo->prepare("
+                        INSERT INTO patient_assignments 
+                        (patient_id, cod_user_id, clinical_instructor_id, assignment_status, notes, assigned_at, created_at, updated_at)
+                        VALUES (?, ?, ?, 'accepted', ?, NOW(), NOW(), NOW())
+                    ");
+                    $patientAssignInsertStmt->execute([
+                        $patientId, 
+                        $codUserId, 
+                        $clinicalInstructorId, 
+                        $procedureNotes
+                    ]);
+                    $patientAssignmentId = $pdo->lastInsertId();
+                }
+            }
+
+            // Create or update approval record for the patient assignment
+            $approvalStmt = $pdo->prepare("
+                INSERT INTO patient_approvals 
+                (patient_id, assignment_id, clinical_instructor_id, approval_status, created_at, updated_at)
+                VALUES (?, ?, ?, 'pending', NOW(), NOW())
+                ON DUPLICATE KEY UPDATE
+                clinical_instructor_id = VALUES(clinical_instructor_id),
+                approval_status = 'pending',
+                updated_at = NOW()
+            ");
+            $approvalStmt->execute([$patientId, $patientAssignmentId, $clinicalInstructorId]);
+
+            // CRITICAL: Ensure only ONE 'accepted' assignment exists per patient
+            // Mark any other 'accepted' assignments for this patient (to other CIs) as 'rejected'
+            $cleanupStmt = $pdo->prepare("
+                UPDATE patient_assignments 
+                SET assignment_status = 'rejected',
+                    notes = CONCAT(IFNULL(notes, ''), '\n', 'Auto-rejected: Patient reassigned to another CI'),
+                    updated_at = NOW()
+                WHERE patient_id = ? 
+                AND clinical_instructor_id != ?
+                AND assignment_status = 'accepted'
+                AND id != ?
+            ");
+            $cleanupStmt->execute([$patientId, $clinicalInstructorId, $patientAssignmentId]);
+
+            // Create auto-generated progress note from procedure log
+            // Check if progress note already exists for this procedure_log_id
+            $existingProgressNoteStmt = $pdo->prepare("
+                SELECT id FROM progress_notes 
+                WHERE procedure_log_id = ? AND patient_id = ?
+            ");
+            $existingProgressNoteStmt->execute([$procedureLogId, $patientId]);
+            $existingProgressNote = $existingProgressNoteStmt->fetch();
+
+            if (!$existingProgressNote) {
+                // Extract tooth number from procedure_selected if available (format: "Procedure (Tooth: XX)")
+                $toothNumber = null;
+                $procedureSelected = $assignment['procedure_selected'] ?? '';
+                if (preg_match('/\(Tooth:\s*([^)]+)\)/i', $procedureSelected, $matches)) {
+                    $toothNumber = trim($matches[1]);
+                }
+
+                // Get CI name
+                $ciNameStmt = $pdo->prepare("SELECT full_name FROM users WHERE id = ?");
+                $ciNameStmt->execute([$clinicalInstructorId]);
+                $ciUser = $ciNameStmt->fetch();
+                $ciName = $ciUser['full_name'] ?? '';
+
+                // Build progress note text
+                $progressText = 'Procedure Logged: ' . $procedureSelected;
+                if (!empty($assignment['chair_number'])) {
+                    $progressText .= ' (Chair: ' . $assignment['chair_number'] . ')';
+                }
+
+                // Get patient signature from informed_consent if available
+                $signatureStmt = $pdo->prepare("
+                    SELECT data_privacy_signature_path FROM informed_consent 
+                    WHERE patient_id = ? LIMIT 1
+                ");
+                $signatureStmt->execute([$patientId]);
+                $signatureData = $signatureStmt->fetch();
+                $patientSignature = $assignment['patient_name'] ?? '';
+
+                // Create the auto-generated progress note
+                $progressNoteStmt = $pdo->prepare("
+                    INSERT INTO progress_notes
+                    (patient_id, date, tooth, progress, clinician, ci, remarks, patient_signature, auto_generated, procedure_log_id)
+                    VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, 1, ?)
+                ");
+                $progressNoteStmt->execute([
+                    $patientId,
+                    $toothNumber,
+                    $progressText,
+                    $assignment['clinician_name'] ?? '',
+                    $ciName,
+                    $assignment['remarks'] ?? null,
+                    $patientSignature,
+                    $procedureLogId
+                ]);
+}
+}
+
+$pdo->commit();
+return $result;
+} catch (PDOException $e) {
+$pdo->rollBack();
+error_log("Error updating procedure assignment status: " . $e->getMessage());
+return false;
+}
+}
+
+// Get patient status (Active/Inactive) based on progress notes date
+// INACTIVE: Last progress note date is older than 1 year from current date
+// ACTIVE: Last progress note is within 1 year OR patient has no progress notes
+function getPatientStatus($patientId)
+{
+    global $pdo;
+
+    if (!$pdo || !$patientId)
+        return 'Inactive';
+
+    try {
+        // Calculate patient status based on most recent progress note date
+        $stmt = $pdo->prepare("
+            SELECT 
+                CASE 
+                    WHEN MAX(pn.date) IS NULL THEN 'Active'
+                    WHEN MAX(pn.date) >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR) THEN 'Active'
+                    ELSE 'Inactive'
+                END AS patient_status
+            FROM patients p
+            LEFT JOIN progress_notes pn ON p.id = pn.patient_id
+            WHERE p.id = ?
+            GROUP BY p.id
+        ");
+        $stmt->execute([$patientId]);
+        $result = $stmt->fetch();
+
+        if ($result && isset($result['patient_status'])) {
+            return $result['patient_status'];
+        } else {
+            // Default to Active if no progress notes exist
+            return 'Active';
+        }
     } catch (PDOException $e) {
-        $pdo->rollBack();
-        error_log("Error updating procedure assignment status: " . $e->getMessage());
-        return false;
+        error_log("Error getting patient status: " . $e->getMessage());
+        return 'Inactive';
     }
 }
 

@@ -53,20 +53,16 @@ foreach ($rows as &$row) {
         $row['treatment_plan'] = $tpMap[$row['procedure_log_id']];
     }
 
+    // Store the original progress text without UI prefixes
+    $row['original_progress'] = $row['progress'] ?? '';
+    
     if (!empty($row['auto_generated']) && (int)$row['auto_generated'] === 1) {
-        $prefix = '[AUTO] ';
-        if (strpos((string)$row['progress'], 'Procedure Logged:') !== false) {
-            if (strpos((string)$row['progress'], '[AUTO]') === false) {
-                $row['progress'] = $prefix . $row['progress'];
-            }
-        } else {
-            $row['progress'] = $prefix . 'Procedure Logged: ' . ($row['progress'] ?? '');
-        }
         $row['is_auto_generated'] = true;
     } else {
         $row['is_auto_generated'] = false;
     }
 }
+unset($row); // Break the reference
 
 // Provide a default empty row if no notes exist
 if (!$rows) {
@@ -75,17 +71,19 @@ if (!$rows) {
         'date' => '',
         'tooth' => '',
         'progress' => '',
+        'original_progress' => '',
         'clinician' => '',
         'ci' => '',
         'remarks' => '',
         'patient_signature' => '',
         'treatment_plan' => '',
-        'is_auto_generated' => false
+        'is_auto_generated' => false,
+        'auto_generated' => 0
     ]];
 }
 
 /* ---------- Fetch patient header info ---------- */
-$pt = $pdo->prepare("SELECT last_name, first_name, middle_initial, age, gender FROM patients WHERE id = ?");
+$pt = $pdo->prepare("SELECT last_name, first_name, middle_initial, age, gender, status FROM patients WHERE id = ?");
 $pt->execute([$patientId]);
 $patient = $pt->fetch(PDO::FETCH_ASSOC);
 $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? ''));
@@ -206,15 +204,7 @@ $currentUserName = $currentUser['full_name'] ?? '';
               <td class="border px-2 py-1"><input type="date" name="date[]" value="<?= htmlspecialchars($row['date'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
               <td class="border px-2 py-1"><input type="text" name="tooth[]" value="<?= htmlspecialchars($row['tooth'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>
               <td class="border px-2 py-1">
-                <div class="flex items-center gap-1">
-                  <input type="text" name="progress[]" value="<?= htmlspecialchars($row['progress'] ?? '') ?>" class="flex-1 bg-transparent border-0 focus:ring-0 text-xs">
-                  <?php if (!empty($row['treatment_plan'])): ?>
-                    <span title="Treatment Plan" class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800">TP</span>
-                  <?php endif; ?>
-                  <?php if (!empty($row['is_auto_generated'])): ?>
-                    <span title="Auto-generated from procedure log" class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-200 text-gray-700">AUTO</span>
-                  <?php endif; ?>
-                </div>
+                <input type="text" name="progress[]" value="<?= htmlspecialchars($row['original_progress'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs">
               </td>
               <td class="border px-2 py-1"><input type="text" name="clinician[]" readonly value="<?= htmlspecialchars($currentUserName ?: ($row['clinician'] ?? '')) ?>" class="w-full bg-gray-100 border-0 focus:ring-0 text-xs"></td>
               <td class="border px-2 py-1"><input type="text" name="ci[]" value="<?= htmlspecialchars($row['ci'] ?? '') ?>" class="w-full bg-transparent border-0 focus:ring-0 text-xs"></td>

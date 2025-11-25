@@ -18,19 +18,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     // Get form data
-    $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : 0;
+    $patientId = isset($_POST['patient_id']) ? (int) $_POST['patient_id'] : 0;
     $procedureSelectedJson = $_POST['procedure_selected'] ?? '';
     $clinicianName = $_POST['clinician_name'] ?? '';
     $procedureDetails = trim($_POST['procedure_details'] ?? '');
     $chairNumber = trim($_POST['chair_number'] ?? '');
     $remarks = trim($_POST['remarks'] ?? ''); // Get selected remark
-    
+
     // Validate required fields
     if (!$patientId || empty($procedureSelectedJson) || empty($clinicianName)) {
         header('Location: clinician_log_procedure.php?error=' . urlencode('All fields are required'));
         exit;
     }
-    
+
     // Verify that the patient exists (Admin sees all, Clinician sees only their patients)
     if ($role === 'Admin') {
         $stmt = $pdo->prepare("
@@ -62,26 +62,26 @@ try {
         $stmt->execute([$patientId, $user['id']]);
     }
     $patient = $stmt->fetch();
-    
+
     if (!$patient) {
         header('Location: clinician_log_procedure.php?error=' . urlencode('Patient not found or unauthorized'));
         exit;
     }
-    
+
     // Parse procedure data
     $procedureData = json_decode($procedureSelectedJson, true);
     if (!$procedureData) {
         header('Location: clinician_log_procedure.php?error=' . urlencode('Invalid procedure data'));
         exit;
     }
-    
+
     // Build patient full name
     $patientFullName = trim($patient['first_name']);
     if (!empty($patient['middle_initial'])) {
         $patientFullName .= ' ' . $patient['middle_initial'] . '.';
     }
     $patientFullName .= ' ' . $patient['last_name'];
-    
+
     // Format procedure selected for storage
     $procedureDisplay = $procedureData['plan'] ?? '';
     if (!empty($procedureData['tooth'])) {
@@ -93,7 +93,7 @@ try {
     if (!empty($procedureData['sequence'])) {
         $procedureDisplay .= ' [' . $procedureData['sequence'] . ']';
     }
-    
+
     // Insert procedure log
     $stmt = $pdo->prepare("
         INSERT INTO procedure_logs (
@@ -110,10 +110,10 @@ try {
             logged_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
-    
+
     // Use custom procedure details if provided, otherwise use patient's procedure details from database
     $finalProcedureDetails = !empty($procedureDetails) ? $procedureDetails : ($patient['treatment_hint'] ?? null);
-    
+
     $result = $stmt->execute([
         $patientId,
         $user['id'],
@@ -126,11 +126,11 @@ try {
         $clinicianName,
         !empty($remarks) ? $remarks : null // Save selected remark
     ]);
-    
+
     if ($result) {
         // Get the ID of the newly created procedure log
         $procedureLogId = $pdo->lastInsertId();
-        
+
         // First, check if there are Clinical Instructors currently online
         $onlineCICheck = $pdo->prepare("
             SELECT u.id, u.full_name
@@ -144,20 +144,20 @@ try {
         ");
         $onlineCICheck->execute();
         $onlineCI = $onlineCICheck->fetch();
-        
+
         // If there's an online CI, manually create the assignment and progress note
         if ($onlineCI) {
             try {
                 // Start transaction for consistent updates
                 $pdo->beginTransaction();
-                
+
                 // Create the assignment record
                 $assignmentStmt = $pdo->prepare("
                     INSERT INTO procedure_assignments 
                     (procedure_log_id, cod_user_id, clinical_instructor_id, assignment_status, notes, assigned_at, created_at, updated_at)
                     VALUES (?, ?, ?, 'pending', 'Auto-assigned on submit', NOW(), NOW(), NOW())
                 ");
-                
+
                 $codId = null;
                 // Try to get a COD user for attribution
                 $codCheck = $pdo->prepare("SELECT id FROM users WHERE role = 'COD' AND account_status = 'active' LIMIT 1");
@@ -166,62 +166,26 @@ try {
                 if ($codUser) {
                     $codId = $codUser['id'];
                 }
-                
+
                 $assignmentStmt->execute([$procedureLogId, $codId, $onlineCI['id']]);
-                
-                // Extract tooth information from procedure data if available
-                $toothInfo = '';
-                if (!empty($procedureData['tooth'])) {
-                    $toothInfo = $procedureData['tooth'];
-                }
-                
-                // Create progress note entry
-                $progressStmt = $pdo->prepare("
-                    INSERT INTO progress_notes (
-                        patient_id, 
-                        date, 
-                        tooth, 
-                        progress, 
-                        clinician, 
-                        ci, 
-                        remarks, 
-                        patient_signature,
-                        auto_generated,
-                        procedure_log_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                
-                $progressNote = "Procedure Logged: " . $procedureDisplay;
-                $progressStmt->execute([
-                    $patientId,
-                    date('Y-m-d'),
-                    $toothInfo,
-                    $progressNote,
-                    $clinicianName,
-                    $onlineCI['full_name'],
-                    $remarks,
-                    $patientFullName,
-                    1, // Mark as auto-generated
-                    $procedureLogId // Reference to the procedure log
-                ]);
-                
+
                 $pdo->commit();
-                error_log("Created auto-generated progress note for procedure log ID $procedureLogId assigned to CI {$onlineCI['full_name']}");
-                
+                error_log("Created auto-assignment for procedure log ID $procedureLogId to CI {$onlineCI['full_name']}");
+
             } catch (PDOException $e) {
                 $pdo->rollBack();
                 // Log error but don't fail the entire operation
-                error_log("Error creating auto-generated progress note: " . $e->getMessage());
+                error_log("Error creating auto-assignment: " . $e->getMessage());
             }
         }
-        
+
         header('Location: clinician_log_procedure.php?success=1');
         exit;
     } else {
         header('Location: clinician_log_procedure.php?error=' . urlencode('Failed to save procedure log'));
         exit;
     }
-    
+
 } catch (PDOException $e) {
     error_log("Error saving procedure log: " . $e->getMessage());
     header('Location: clinician_log_procedure.php?error=' . urlencode('Database error occurred'));

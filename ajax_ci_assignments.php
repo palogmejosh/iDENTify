@@ -7,12 +7,10 @@ header('Content-Type: application/json');
 $user = getCurrentUser();
 $role = $user['role'] ?? '';
 
-// Only Clinical Instructors can use this endpoint
-if ($role !== 'Clinical Instructor') {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Unauthorized access'
-    ]);
+// Only Clinical Instructors or Admin can use this endpoint
+if (!in_array($role, ['Clinical Instructor', 'Admin'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit;
 }
 
@@ -32,7 +30,7 @@ if ($action === 'update_assignment') {
     $assignmentId = $_POST['assignment_id'] ?? null;
     $status = $_POST['status'] ?? null;
     $notes = $_POST['notes'] ?? '';
-    
+
     // Validate inputs
     if (empty($assignmentId) || empty($status)) {
         echo json_encode([
@@ -41,7 +39,7 @@ if ($action === 'update_assignment') {
         ]);
         exit;
     }
-    
+
     // Validate status
     if (!in_array($status, ['accepted', 'rejected'])) {
         echo json_encode([
@@ -50,10 +48,10 @@ if ($action === 'update_assignment') {
         ]);
         exit;
     }
-    
+
     // Update the assignment status
     $result = updateAssignmentStatus($assignmentId, $user['id'], $status, $notes);
-    
+
     if ($result) {
         $statusText = $status === 'accepted' ? 'accepted' : 'denied';
         echo json_encode([

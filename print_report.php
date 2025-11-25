@@ -29,6 +29,17 @@ $consent= fetch('informed_consent',$patientId);
 $h = fn($v) => htmlspecialchars($v ?? '');
 $patientFullName = trim($h($patient['first_name']).' '.$h($patient['last_name']));
 
+// Helper function to properly check checkbox values
+// Returns true only if the value is explicitly 1 (checked), false otherwise
+function isChecked($value) {
+    // Handle NULL, empty string, 0, '0', false - all should be unchecked
+    if ($value === null || $value === '' || $value === 0 || $value === '0' || $value === false) {
+        return false;
+    }
+    // Only return true if value is explicitly 1 or '1'
+    return ($value === 1 || $value === '1');
+}
+
 /* ----------  CI name for page-3 (Updated to use assigned CI) ---------- */
 $ciName = getAssignedClinicalInstructor($patientId) ?: '';
 
@@ -449,7 +460,6 @@ body { margin: 0; padding: 0; }
     height: 18px; /* Reduced from 20px */
     margin-top: 4px; /* Reduced from 5px */
 }</style>
-</style>
 
 <div class="page1">
     <!-- Header -->
@@ -479,46 +489,46 @@ body { margin: 0; padding: 0; }
         <div class="personal-info-left">
             <table class="personal-data-table">
                 <tr>
-                    <td>Last name<br><strong><?= $h($patient['last_name']) ?></strong></td>
-                    <td>First name<br><strong><?= $h($patient['first_name']) ?></strong></td>
-                    <td>MI<br><strong><?= $h($pir['mi']) ?></strong></td>
-                    <td>Nickname<br><strong><?= $h($pir['nickname']) ?></strong></td>
-                    <td>Age/<br>Sex/<br>Gender<br><strong><?= $h($pir['age']) ?>/<?= $h($pir['gender']) ?></strong></td>
-                    <td>Date of Birth<br><strong><?= $h($pir['date_of_birth']) ?></strong></td>
-                    <td>Civil Status<br><strong><?= $h($pir['civil_status']) ?></strong></td>
+                    <td>Last name<br><strong><?= $h($patient['last_name'] ?? '') ?></strong></td>
+                    <td>First name<br><strong><?= $h($patient['first_name'] ?? '') ?></strong></td>
+                    <td>MI<br><strong><?= $h($pir['mi'] ?? '') ?></strong></td>
+                    <td>Nickname<br><strong><?= $h($pir['nickname'] ?? '') ?></strong></td>
+                    <td>Age/<br>Sex/<br>Gender<br><strong><?= $h($pir['age'] ?? '') ?>/<?= $h($pir['gender'] ?? '') ?></strong></td>
+                    <td>Date of Birth<br><strong><?= $h($pir['date_of_birth'] ?? '') ?></strong></td>
+                    <td>Civil Status<br><strong><?= $h($pir['civil_status'] ?? '') ?></strong></td>
                 </tr>
                 <tr>
-                    <td colspan="3">Home Address<br><strong><?= $h($pir['home_address']) ?></strong></td>
-                    <td>Home phone<br><strong><?= $h($pir['home_phone']) ?></strong></td>
-                    <td>Mobile No<br><strong><?= $h($pir['mobile_no']) ?></strong></td>
-                    <td colspan="2">Email<br><strong><?= $h($patient['email']) ?></strong></td>
+                    <td colspan="3">Home Address<br><strong><?= $h($pir['home_address'] ?? '') ?></strong></td>
+                    <td>Home phone<br><strong><?= $h($pir['home_phone'] ?? '') ?></strong></td>
+                    <td>Mobile No<br><strong><?= $h($pir['mobile_no'] ?? '') ?></strong></td>
+                    <td colspan="2">Email<br><strong><?= $h($patient['email'] ?? '') ?></strong></td>
                 </tr>
                 <tr>
-                    <td>Occupation<br><strong><?= $h($pir['occupation']) ?></strong></td>
-                    <td colspan="2">Work Address<br><strong><?= $h($pir['work_address']) ?></strong></td>
-                    <td>Phone<br><strong><?= $h($pir['work_phone']) ?></strong></td>
-                    <td colspan="3">Nationality/Ethnicity<br><strong><?= $h($pir['ethnicity']) ?></strong></td>
+                    <td>Occupation<br><strong><?= $h($pir['occupation'] ?? '') ?></strong></td>
+                    <td colspan="2">Work Address<br><strong><?= $h($pir['work_address'] ?? '') ?></strong></td>
+                    <td>Phone<br><strong><?= $h($pir['work_phone'] ?? '') ?></strong></td>
+                    <td colspan="3">Nationality/Ethnicity<br><strong><?= $h($pir['ethnicity'] ?? '') ?></strong></td>
                 </tr>
                 <tr>
-                    <td colspan="2">For minors: Parent/Guardian<br><strong><?= $h($pir['guardian_name']) ?></strong></td>
-                    <td>Contact number<br><strong><?= $h($pir['guardian_contact']) ?></strong></td>
-                    <td>Emergency Contact<br><strong><?= $h($pir['emergency_contact_name']) ?></strong></td>
-                    <td colspan="3">Contact number<br><strong><?= $h($pir['emergency_contact_number']) ?></strong></td>
+                    <td colspan="2">For minors: Parent/Guardian<br><strong><?= $h($pir['guardian_name'] ?? '') ?></strong></td>
+                    <td>Contact number<br><strong><?= $h($pir['guardian_contact'] ?? '') ?></strong></td>
+                    <td>Emergency Contact<br><strong><?= $h($pir['emergency_contact_name'] ?? '') ?></strong></td>
+                    <td colspan="3">Contact number<br><strong><?= $h($pir['emergency_contact_number'] ?? '') ?></strong></td>
                 </tr>
             </table>
         </div>
         <div class="personal-info-right">
             <div class="photo-section">
-                <?php if (!empty($pir['photo']) && file_exists($pir['photo'])): ?>
-                    <img src="<?= $h($pir['photo']) ?>" style="max-width: 90%; max-height: 90%; object-fit: cover;" alt="Patient Photo">
+                <?php if (!empty($pir['photo'] ?? '') && file_exists($pir['photo'] ?? '')): ?>
+                    <img src="<?= $h($pir['photo'] ?? '') ?>" style="max-width: 90%; max-height: 90%; object-fit: cover;" alt="Patient Photo">
                 <?php else: ?>
                     <span>No photo</span>
                 <?php endif; ?>
                 <div>1"x1" picture</div>
             </div>
             <div class="thumbmark-section">
-                <?php if (!empty($pir['thumbmark']) && file_exists($pir['thumbmark'])): ?>
-                    <img src="<?= $h($pir['thumbmark']) ?>" style="max-width: 90%; max-height: 90%; object-fit: cover;" alt="Thumbmark">
+                <?php if (!empty($pir['thumbmark'] ?? '') && file_exists($pir['thumbmark'] ?? '')): ?>
+                    <img src="<?= $h($pir['thumbmark'] ?? '') ?>" style="max-width: 90%; max-height: 90%; object-fit: cover;" alt="Thumbmark">
                 <?php else: ?>
                     <span>No thumbmark</span>
                 <?php endif; ?>
@@ -530,15 +540,15 @@ body { margin: 0; padding: 0; }
     <!-- Subjective Section -->
     <div class="subjective-title">SUBJECTIVE:</div>
     <div class="case-history-container">
-        <div class="case-history-header">
+            <div class="case-history-header">
             <div class="case-history-label">CASE HISTORY:</div>
             <div class="case-history-fields">
-                <div class="case-field">Date today<br><strong><?= $h($pir['date_today']) ?></strong></div>
-                <div class="case-field">Clinician<br><strong><?= $h($currentUserName ?: $pir['clinician']) ?></strong></div>
+                <div class="case-field">Date today<br><strong><?= $h($pir['date_today'] ?? '') ?></strong></div>
+                <div class="case-field">Clinician<br><strong><?= $h($currentUserName ?: ($pir['clinician'] ?? '')) ?></strong></div>
                 <div class="case-field">Clinic (encircle)<br>
                     <div style="display: flex; gap: 5px; align-items: center; font-weight: bold;">
                         <?php foreach (['I','II','III','IV'] as $v): ?>
-                            <span style="<?= $h($pir['clinic'])===$v ? 'border: 2px solid red; border-radius: 50%; padding: 3px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
+                            <span style="<?= ($pir['clinic'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 3px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
                         <?php endforeach; ?>
                     </div>
                 </div>
@@ -547,11 +557,11 @@ body { margin: 0; padding: 0; }
         <div class="case-content">
             <div class="chief-complaint">
                 <strong>CHIEF COMPLAINT</strong><br>
-                <div style="font-weight: normal; margin-top: 5px;"><?= $h($pir['chief_complaint']) ?></div>
+                <div style="font-weight: normal; margin-top: 5px;"><?= $h($pir['chief_complaint'] ?? '') ?></div>
             </div>
             <div class="history-illness">
                 <strong>HISTORY OF PRESENT ILLNESS</strong><br>
-                <div style="font-weight: normal; margin-top: 5px;"><?= $h($pir['present_illness']) ?></div>
+                <div style="font-weight: normal; margin-top: 5px;"><?= $h($pir['present_illness'] ?? '') ?></div>
             </div>
         </div>
     </div>
@@ -560,17 +570,17 @@ body { margin: 0; padding: 0; }
     <div class="medical-dental-container">
         <div class="medical-history-section">
             <div class="history-header">MEDICAL HISTORY</div>
-            <div class="history-item"><strong>Medications taken? (Why?)</strong><br><?= $h($pir['medications_taken']) ?></div>
-            <div class="history-item"><strong>Allergy to</strong><br><?= $h($pir['allergies']) ?></div>
-            <div class="history-item"><strong>Past and present illnesses?</strong><br><?= $h($pir['past_illnesses']) ?></div>
-            <div class="history-item"><strong>Last time examined by a physician. (Why? Result?)</strong><br><?= $h($pir['last_physician_exam']) ?></div>
-            <div class="history-item"><strong>Hospitalization experience?</strong><br><?= $h($pir['hospitalization']) ?></div>
-            <div class="history-item"><strong>Bleeding tendencies?</strong><br><?= $h($pir['bleeding_tendencies']) ?></div>
-            <div class="history-item"><strong>Females only (contraceptives, pregnancy, changes in menstrual pattern, breastfeeding?)</strong><br><?= $h($pir['female_specific']) ?></div>
+            <div class="history-item"><strong>Medications taken? (Why?)</strong><br><?= $h($pir['medications_taken'] ?? '') ?></div>
+            <div class="history-item"><strong>Allergy to</strong><br><?= $h($pir['allergies'] ?? '') ?></div>
+            <div class="history-item"><strong>Past and present illnesses?</strong><br><?= $h($pir['past_illnesses'] ?? '') ?></div>
+            <div class="history-item"><strong>Last time examined by a physician. (Why? Result?)</strong><br><?= $h($pir['last_physician_exam'] ?? '') ?></div>
+            <div class="history-item"><strong>Hospitalization experience?</strong><br><?= $h($pir['hospitalization'] ?? '') ?></div>
+            <div class="history-item"><strong>Bleeding tendencies?</strong><br><?= $h($pir['bleeding_tendencies'] ?? '') ?></div>
+            <div class="history-item"><strong>Females only (contraceptives, pregnancy, changes in menstrual pattern, breastfeeding?)</strong><br><?= $h($pir['female_specific'] ?? '') ?></div>
         </div>
         <div class="dental-history-section">
             <div class="history-header">DENTAL HISTORY</div>
-            <div style="font-weight: normal;"><?= nl2br($h($pir['dental_history'])) ?></div>
+            <div style="font-weight: normal;"><?= nl2br($h($pir['dental_history'] ?? '')) ?></div>
         </div>
     </div>
 
@@ -578,11 +588,11 @@ body { margin: 0; padding: 0; }
     <div class="family-personal-container">
         <div class="family-history">
             <strong>FAMILY HISTORY</strong><br>
-            <div style="font-weight: normal; margin-top: 5px;"><?= nl2br($h($pir['family_history'])) ?></div>
+            <div style="font-weight: normal; margin-top: 5px;"><?= nl2br($h($pir['family_history'] ?? '')) ?></div>
         </div>
         <div class="personal-history">
             <strong>PERSONAL AND SOCIAL HISTORY</strong><br>
-            <div style="font-weight: normal; margin-top: 5px;"><?= nl2br($h($pir['personal_history'])) ?></div>
+            <div style="font-weight: normal; margin-top: 5px;"><?= nl2br($h($pir['personal_history'] ?? '')) ?></div>
         </div>
     </div>
 
@@ -593,55 +603,55 @@ body { margin: 0; padding: 0; }
             <div class="system-column">
                 <div class="system-item">
                     <div class="system-label">Skin</div>
-                    <div class="dotted-line"><?= $h($pir['skin']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['skin'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Extremities</div>
-                    <div class="dotted-line"><?= $h($pir['extremities']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['extremities'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Eyes</div>
-                    <div class="dotted-line"><?= $h($pir['eyes']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['eyes'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Ears, nose throat</div>
-                    <div class="dotted-line"><?= $h($pir['ent']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['ent'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Summary</div>
-                    <div class="dotted-line"><?= $h($pir['systems_summary']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['systems_summary'] ?? '') ?></div>
                 </div>
             </div>
             <div class="system-column">
                 <div class="system-item">
                     <div class="system-label">Respiratory</div>
-                    <div class="dotted-line"><?= $h($pir['respiratory']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['respiratory'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Cardiovascular</div>
-                    <div class="dotted-line"><?= $h($pir['cardiovascular']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['cardiovascular'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Gastrointestinal</div>
-                    <div class="dotted-line"><?= $h($pir['gastrointestinal']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['gastrointestinal'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Genitourinary</div>
-                    <div class="dotted-line"><?= $h($pir['genitourinary']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['genitourinary'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
@@ -649,31 +659,31 @@ body { margin: 0; padding: 0; }
             <div class="system-column">
                 <div class="system-item">
                     <div class="system-label">Endocrine</div>
-                    <div class="dotted-line"><?= $h($pir['endocrine']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['endocrine'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Hematopoietic</div>
-                    <div class="dotted-line"><?= $h($pir['hematopoietic']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['hematopoietic'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Neurological</div>
-                    <div class="dotted-line"><?= $h($pir['neurological']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['neurological'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Psychiatric</div>
-                    <div class="dotted-line"><?= $h($pir['psychiatric']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['psychiatric'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
                 <div class="system-item">
                     <div class="system-label">Growth or tumor</div>
-                    <div class="dotted-line"><?= $h($pir['growth_or_tumor']) ?></div>
+                    <div class="dotted-line"><?= $h($pir['growth_or_tumor'] ?? '') ?></div>
                     <div class="dotted-line"></div>
                     <div class="dotted-line"></div>
                 </div>
@@ -687,11 +697,11 @@ body { margin: 0; padding: 0; }
             <strong>HEALTH ASSESSMENT:</strong> ASA (encircle)
             <div class="asa-section">
                 <?php foreach (['I','II','III','IV'] as $v): ?>
-                    <span style="<?= $h($pir['asa'])===$v ? 'border: 2px solid red; border-radius: 50%; padding: 5px 8px; margin: 0 5px;' : 'margin: 0 5px;' ?>"><?= $v ?></span>
+                    <span style="<?= ($pir['asa'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 5px 8px; margin: 0 5px;' : 'margin: 0 5px;' ?>"><?= $v ?></span>
                 <?php endforeach; ?>
             </div>
             <div><strong>Notes:</strong></div>
-            <div><?= $h($pir['asa_notes']) ?></div>
+            <div><?= $h($pir['asa_notes'] ?? '') ?></div>
         </div>
         <div class="medical-alert-section">
             <div class="official-stamp">OFFICIAL<br>DOCUMENT</div>
@@ -862,11 +872,11 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
 
     <!-- Patient banner -->
     <div class="name-section">
-        <div class="name-field">Last name<br><?= htmlspecialchars($patient['last_name']) ?></div>
-        <div class="name-field">First name<br><?= htmlspecialchars($patient['first_name']) ?></div>
-        <div class="name-field">MI<br><?= htmlspecialchars($patient['middle_initial']) ?></div>
-        <div class="name-field">Nickname<br><?= htmlspecialchars($patient['nickname']) ?></div>
-        <div class="name-field">Age/Gender<br><?= htmlspecialchars($patient['age']) ?>/<?= htmlspecialchars($patient['gender']) ?></div>
+        <div class="name-field">Last name<br><?= htmlspecialchars($patient['last_name'] ?? '') ?></div>
+        <div class="name-field">First name<br><?= htmlspecialchars($patient['first_name'] ?? '') ?></div>
+        <div class="name-field">MI<br><?= htmlspecialchars($patient['middle_initial'] ?? '') ?></div>
+        <div class="name-field">Nickname<br><?= htmlspecialchars($patient['nickname'] ?? '') ?></div>
+        <div class="name-field">Age/Gender<br><?= htmlspecialchars($patient['age'] ?? '') ?>/<?= htmlspecialchars($patient['gender'] ?? '') ?></div>
     </div>
 
     <!-- Questionnaire -->
@@ -890,11 +900,11 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
 
             <!-- Row 1 -->
             <tr>
-                <td class="checkbox-col"><?= ($health['last_medical_physical_yes'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['last_medical_physical_no'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['last_medical_physical_yes'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['last_medical_physical_no'] ?? 0) ? '✓' : '□' ?></td>
                 <td>My last medical physical evaluation was on (approximately): <?= htmlspecialchars($health['last_medical_physical'] ?? '') ?></td>
-                <td class="checkbox-col"><?= ($health['abnormal_bleeding_yes'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['abnormal_bleeding_no'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['abnormal_bleeding_yes'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['abnormal_bleeding_no'] ?? 0) ? '✓' : '□' ?></td>
                 <td>Have you had abnormal bleeding associated with previous extractions, surgery or trauma</td>
             </tr>
             <tr>
@@ -904,31 +914,31 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
 
             <!-- Row 3 -->
             <tr>
-                <td class="checkbox-col"><?= ($health['under_physician_care'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['under_physician_care'] ?? 0) ? '□' : '✓' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['under_physician_care'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['under_physician_care'] ?? 0) ? '□' : '✓' ?></td>
                 <td>Are you NOW under the care of a physician?<br>If so, what is the condition being treated? <?= htmlspecialchars($health['under_physician_care_note'] ?? '') ?></td>
-                <td class="checkbox-col"><?= ($health['bruise_easily'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['bruise_easily'] ?? 0) ? '□' : '✓' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['bruise_easily_yes'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['bruise_easily_no'] ?? 0) ? '✓' : '□' ?></td>
                 <td>Do you bruise easily</td>
             </tr>
 
             <!-- Row 4 -->
             <tr>
-                <td class="checkbox-col"><?= ($health['serious_illness_operation'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['serious_illness_operation'] ?? 0) ? '□' : '✓' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['serious_illness_operation'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['serious_illness_operation'] ?? 0) ? '□' : '✓' ?></td>
                 <td>Have you ever had any serious illness or operation?<br>If so, what was the illness or operation? <?= htmlspecialchars($health['serious_illness_operation_note'] ?? '') ?></td>
-                <td class="checkbox-col"><?= ($health['blood_transfusion_yes'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['blood_transfusion_no'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['blood_transfusion_yes'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['blood_transfusion_no'] ?? 0) ? '✓' : '□' ?></td>
                 <td>Have you ever required a blood transfusion<br>If so, under what circumstances: <?= htmlspecialchars($health['blood_transfusion_note'] ?? '') ?></td>
             </tr>
 
             <!-- Row 5 -->
             <tr>
-                <td class="checkbox-col"><?= ($health['hospitalized'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['hospitalized'] ?? 0) ? '□' : '✓' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['hospitalized'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['hospitalized'] ?? 0) ? '□' : '✓' ?></td>
                 <td>Have you been hospitalized?<br>If so, when and what was the problem? <?= htmlspecialchars($health['hospitalized_note'] ?? '') ?></td>
-                <td class="checkbox-col"><?= ($health['blood_disorder_yes'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['blood_disorder_no'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['blood_disorder_yes'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['blood_disorder_no'] ?? 0) ? '✓' : '□' ?></td>
                 <td>Do you have any blood disorder such as anemia, including sickle cell anemia</td>
             </tr>
 
@@ -951,12 +961,12 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
             foreach ($diseases as [$k1,$l1,$k2,$l2]):
             ?>
                 <tr>
-                    <td class="checkbox-col"><?= ($health[$k1] ?? 0) ? '✓' : '□' ?></td>
-                    <td class="checkbox-col"><?= ($health[$k1] ?? 0) ? '□' : '✓' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k1] ?? 0) ? '✓' : '□' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k1] ?? 0) ? '□' : '✓' ?></td>
                     <td><?= $l1 ?><?= $k1==='childhood_diseases' ? ' <span class="dotted-line">'.htmlspecialchars($health['childhood_diseases_note'] ?? '').'</span>' : '' ?></td>
 
-                    <td class="checkbox-col"><?= ($health[$k2] ?? 0) ? '✓' : '□' ?></td>
-                    <td class="checkbox-col"><?= ($health[$k2] ?? 0) ? '□' : '✓' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k2] ?? 0) ? '✓' : '□' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k2] ?? 0) ? '□' : '✓' ?></td>
                     <td><?= $l2 ?><?= $k2==='other_conditions' ? ' <span class="dotted-line">'.htmlspecialchars($health['other_conditions_note'] ?? '').'</span>' : '' ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -974,12 +984,12 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
             foreach ($allergies as [$k1,$l1,$k2,$l2]):
             ?>
                 <tr>
-                    <td class="checkbox-col"><?= ($health[$k1] ?? 0) ? '✓' : '□' ?></td>
-                    <td class="checkbox-col"><?= ($health[$k1] ?? 0) ? '□' : '✓' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k1] ?? 0) ? '✓' : '□' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k1] ?? 0) ? '□' : '✓' ?></td>
                     <td><?= $l1 ?><?= $k1==='other_allergy' ? ' <span class="dotted-line">'.htmlspecialchars($health['other_allergy_note'] ?? '').'</span>' : '' ?></td>
 
-                    <td class="checkbox-col"><?= ($health[$k2] ?? 0) ? '✓' : '□' ?></td>
-                    <td class="checkbox-col"><?= ($health[$k2] ?? 0) ? '□' : '✓' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k2] ?? 0) ? '✓' : '□' ?></td>
+                    <td class="checkbox-col"><?= isChecked($health[$k2] ?? 0) ? '□' : '✓' ?></td>
                     <td><?= $l2 ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -1017,11 +1027,11 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
                 <td colspan="3"></td>
             </tr>
             <tr>
-                <td class="checkbox-col"><?= ($health['pregnant'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['pregnant'] ?? 0) ? '□' : '✓' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['pregnant'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['pregnant'] ?? 0) ? '□' : '✓' ?></td>
                 <td>Pregnant / missed period</td>
-                <td class="checkbox-col"><?= ($health['breast_feeding'] ?? 0) ? '✓' : '□' ?></td>
-                <td class="checkbox-col"><?= ($health['breast_feeding'] ?? 0) ? '□' : '✓' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['breast_feeding'] ?? 0) ? '✓' : '□' ?></td>
+                <td class="checkbox-col"><?= isChecked($health['breast_feeding'] ?? 0) ? '□' : '✓' ?></td>
                 <td>Breast feeding</td>
             </tr>
         </tbody>
@@ -1125,22 +1135,22 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
         </tr>
         <tr class="exam-row">
             <td>
-                Gingiva:
+                    Gingiva:
                 <div style="display: inline-flex; gap: 8px; align-items: center; font-weight: bold; margin-left: 5px;">
                     <?php foreach (['Healthy','Inflamed'] as $v): ?>
-                        <span style="<?= htmlspecialchars($health['perio_gingiva_status'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 2px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
+                        <span style="<?= ($health['perio_gingiva_status'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 2px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
                     <?php endforeach; ?>
                 </div><br>
                 Degree of inflammation:
                 <div style="display: inline-flex; gap: 8px; align-items: center; font-weight: bold; margin-left: 5px;">
                     <?php foreach (['Mild','Moderate','Severe'] as $v): ?>
-                        <span style="<?= htmlspecialchars($health['perio_inflammation_degree'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 2px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
+                        <span style="<?= ($health['perio_inflammation_degree'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 2px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
                     <?php endforeach; ?>
                 </div><br>
                 Degree of deposits:
                 <div style="display: inline-flex; gap: 8px; align-items: center; font-weight: bold; margin-left: 5px;">
                     <?php foreach (['Light','Moderate','Heavy'] as $v): ?>
-                        <span style="<?= htmlspecialchars($health['perio_deposits_degree'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 2px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
+                        <span style="<?= ($health['perio_deposits_degree'] ?? '')===$v ? 'border: 2px solid red; border-radius: 50%; padding: 2px 6px; margin: 0 2px;' : 'margin: 0 2px;' ?>"><?= $v ?></span>
                     <?php endforeach; ?>
                 </div>
             </td>
@@ -1281,19 +1291,19 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
         <div class="patient-info-box">
             <div class="patient-fields">
                 <div class="field-item">
-                    <span class="field-value"><?= $h($patient['last_name']) ?></span>
+                    <span class="field-value"><?= $h($patient['last_name'] ?? '') ?></span>
                     <span class="field-label">Last name</span>
                 </div>
                 <div class="field-item">
-                    <span class="field-value"><?= $h($patient['first_name']) ?></span>
+                    <span class="field-value"><?= $h($patient['first_name'] ?? '') ?></span>
                     <span class="field-label">First name</span>
                 </div>
                 <div class="field-item">
-                    <span class="field-value"><?= $h($patient['middle_initial']) ?></span>
+                    <span class="field-value"><?= $h($patient['middle_initial'] ?? '') ?></span>
                     <span class="field-label">MI</span>
                 </div>
                 <div class="field-item">
-                    <span class="field-value"><?= $h($patient['age']) ?> / <?= $h($patient['gender']) ?></span>
+                    <span class="field-value"><?= $h($patient['age'] ?? '') ?> / <?= $h($patient['gender'] ?? '') ?></span>
                     <span class="field-label">Age/Gender</span>
                 </div>
             </div>
@@ -1322,8 +1332,8 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
 
     <div class="section-title3">Tooth Chart</div>
     <div class="tooth-chart-container">
-        <?php if (!empty($exam['tooth_chart_drawing_path'])): ?>
-        <img src="<?= $h($exam['tooth_chart_drawing_path']) ?>" class="tooth-chart-img" alt="Tooth Chart">
+        <?php if (!empty($exam['tooth_chart_drawing_path'] ?? '')): ?>
+        <img src="<?= $h($exam['tooth_chart_drawing_path'] ?? '') ?>" class="tooth-chart-img" alt="Tooth Chart">
         <?php else: ?>
         <div class="photo-frame" style="width:100%;height:300px;">No chart uploaded</div>
         <?php endif; ?>
@@ -1576,18 +1586,18 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
   <div class="sig-group">
     <div class="sig-line" style="height:40px;display:flex;align-items:center;justify-content:center;">
       <!-- CACHE BUSTING: Added ?t=time() to force reload -->
-      <?php if (!empty($consent['patient_signature']) && file_exists($consent['patient_signature'])): ?>
+      <?php if (!empty($consent['patient_signature'] ?? '') && file_exists($consent['patient_signature'] ?? '')): ?>
                   <img src="<?= $h($consent['patient_signature']) ?>?t=<?= time() ?>" style="height:100%;width:auto;max-width:100%;">
               <?php endif; ?>
     </div>
     <div class="sig-label" style="text-align:center;">Patient/Parent/Guardian's Signature</div>
   </div>
   <div class="sig-group">
-    <div class="sig-line"><?= $h($consent['witness_signature']) ?></div>
+    <div class="sig-line"><?= $h($consent['witness_signature'] ?? '') ?></div>
     <div class="sig-label" style="text-align:center;">Witness</div>
   </div>
   <div class="sig-group">
-    <div class="sig-line"><?= $h($consent['consent_date']) ?></div>
+    <div class="sig-line"><?= $h($consent['consent_date'] ?? '') ?></div>
     <div class="sig-label" style="text-align:center;">Date</div>
   </div>
 </div>
@@ -1597,11 +1607,11 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
      style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:15px;align-items:end;text-align:center;margin-top:4px">
   <div></div> <!-- spacer -->
   <div class="sig-group">
-    <div class="sig-line"><?= $h($currentUserName ?: $consent['clinician_signature']) ?></div>
+    <div class="sig-line"><?= $h($currentUserName ?: ($consent['clinician_signature'] ?? '')) ?></div>
     <div class="sig-label" style="text-align:center;">Clinician</div>
   </div>
   <div class="sig-group">
-    <div class="sig-line"><?= $h($consent['clinician_date']) ?></div>
+    <div class="sig-line"><?= $h($consent['clinician_date'] ?? '') ?></div>
     <div class="sig-label" style="text-align:center;">Date</div>
   </div>
 </div>
@@ -1620,15 +1630,15 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
   <div style="display:flex;align-items:flex-end;gap:4px">
     <div style="text-align:center">
       <!-- CACHE BUSTING: Added ?t=time() to force reload -->
-      <?php if (!empty($consent['data_privacy_signature_path']) && file_exists($consent['data_privacy_signature_path'])): ?>
+      <?php if (!empty($consent['data_privacy_signature_path'] ?? '') && file_exists($consent['data_privacy_signature_path'] ?? '')): ?>
                   <img src="<?= $h($consent['data_privacy_signature_path']) ?>?t=<?= time() ?>" style="max-width:120px;max-height:40px; background:none;background-color:transparent;border:none"alt="Signature">
               <?php endif; ?>
-      <div style="border-bottom:1px solid #000;margin:0 2px"><?= $h($patient['first_name'].' '.$patient['last_name']) ?></div>
+      <div style="border-bottom:1px solid #000;margin:0 2px"><?= $h(($patient['first_name'] ?? '').' '.($patient['last_name'] ?? '')) ?></div>
       <small>Signature over printed name</small>
     </div>
     <span style="font-weight:bold">/</span>
     <div style="text-align:center">
-      <div style="border-bottom:1px solid #000;margin:0 2px"><?= $h($consent['data_privacy_date']) ?></div>
+      <div style="border-bottom:1px solid #000;margin:0 2px"><?= $h($consent['data_privacy_date'] ?? '') ?></div>
       <small>Date</small>
     </div>
   </div>
@@ -1650,11 +1660,11 @@ $patientFullName = trim(($patient['first_name'] ?? '') . ' ' . ($patient['last_n
     <div style="flex-grow: 1; display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: start;">
         <div class="detail-field">
             <label>Patient's name</label>
-            <span class="line"><?= $h($patient['first_name'].' '.$patient['last_name']) ?></span>
+            <span class="line"><?= $h(($patient['first_name'] ?? '').' '.($patient['last_name'] ?? '')) ?></span>
         </div>
         <div class="detail-field age-gender">
             <label>Age / Gender</label>
-            <span class="line"><?= $h($patient['age'].' / '.$patient['gender']) ?></span>
+            <span class="line"><?= $h(($patient['age'] ?? '').' / '.($patient['gender'] ?? '')) ?></span>
         </div>
     </div>
     <div class="alert-box">MEDICAL ALERT!</div>

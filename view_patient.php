@@ -554,7 +554,7 @@ function checked($key, $array) {
 </section>
 
 <!-- ======  C.  Master grid - Updated for full width  ====== -->
-<section class="grid xl:grid-cols-4 lg:grid-cols-3 gap-6">
+<section class="grid grid-cols-1 gap-6">
 
   <!-- Left: questionnaire - Expanded to take more space -->
   <div class="xl:col-span-3 lg:col-span-2 space-y-6">

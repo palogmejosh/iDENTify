@@ -7,11 +7,12 @@ header('Content-Type: application/json');
 $user = getCurrentUser();
 $role = $user['role'] ?? '';
 
-// Only Clinical Instructors can use this endpoint
-if ($role !== 'Clinical Instructor') {
+// Only Clinical Instructors or Admin can use this endpoint
+if (!in_array($role, ['Clinical Instructor', 'Admin'])) {
+    http_response_code(403);
     echo json_encode([
         'success' => false,
-        'message' => 'Unauthorized access. Only Clinical Instructors can manage patient transfers.'
+        'message' => 'Unauthorized access. Only Clinical Instructors or Admin can manage patient transfers.'
     ]);
     exit;
 }
@@ -20,7 +21,7 @@ if ($role !== 'Clinical Instructor') {
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'get_available_cis') {
     $ciId = $user['id'];
     $availableCIs = getAvailableCIsForTransfer($ciId);
-    
+
     echo json_encode([
         'success' => true,
         'cis' => $availableCIs
@@ -46,7 +47,7 @@ if ($action === 'create_transfer') {
     $assignmentId = $_POST['assignment_id'] ?? null;
     $toCIId = $_POST['to_ci_id'] ?? null;
     $transferReason = $_POST['transfer_reason'] ?? '';
-    
+
     // Validate inputs
     if (empty($patientId) || empty($assignmentId) || empty($toCIId)) {
         echo json_encode([
@@ -55,7 +56,7 @@ if ($action === 'create_transfer') {
         ]);
         exit;
     }
-    
+
     // Validate target CI is not the same as current CI
     if ($toCIId == $ciId) {
         echo json_encode([
@@ -64,10 +65,10 @@ if ($action === 'create_transfer') {
         ]);
         exit;
     }
-    
+
     // Create transfer request
     $result = createPatientTransferRequest($patientId, $assignmentId, $ciId, $toCIId, $transferReason);
-    
+
     echo json_encode($result);
     exit;
 }
@@ -77,7 +78,7 @@ if ($action === 'respond_transfer') {
     $transferId = $_POST['transfer_id'] ?? null;
     $response = $_POST['response'] ?? null; // 'accept' or 'reject'
     $responseNotes = $_POST['response_notes'] ?? '';
-    
+
     // Validate inputs
     if (empty($transferId) || empty($response)) {
         echo json_encode([
@@ -86,7 +87,7 @@ if ($action === 'respond_transfer') {
         ]);
         exit;
     }
-    
+
     // Validate response value
     if (!in_array($response, ['accept', 'reject'])) {
         echo json_encode([
@@ -95,10 +96,10 @@ if ($action === 'respond_transfer') {
         ]);
         exit;
     }
-    
+
     // Respond to transfer request
     $result = respondToTransferRequest($transferId, $ciId, $response, $responseNotes);
-    
+
     echo json_encode($result);
     exit;
 }
@@ -106,7 +107,7 @@ if ($action === 'respond_transfer') {
 // Handle cancel transfer request
 if ($action === 'cancel_transfer') {
     $transferId = $_POST['transfer_id'] ?? null;
-    
+
     // Validate inputs
     if (empty($transferId)) {
         echo json_encode([
@@ -115,10 +116,10 @@ if ($action === 'cancel_transfer') {
         ]);
         exit;
     }
-    
+
     // Cancel transfer request
     $result = cancelTransferRequest($transferId, $ciId);
-    
+
     echo json_encode($result);
     exit;
 }

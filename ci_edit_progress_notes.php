@@ -114,3 +114,4 @@ echo json_encode([
     'sharedSignaturePath' => $sharedSignaturePath,
     'currentUserName' => $currentUserName
 ]);
+?>

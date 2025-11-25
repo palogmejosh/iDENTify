@@ -59,11 +59,11 @@ if ($role === 'Admin') {
 }
 $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Get all clinicians for dropdown
+// Get all clinicians and admins for dropdown
 $cliniciansStmt = $pdo->prepare("
     SELECT id, full_name
     FROM users
-    WHERE role = 'Clinician' AND account_status = 'active'
+    WHERE (role = 'Clinician' OR role = 'Admin') AND account_status = 'active'
     ORDER BY full_name ASC
 ");
 $cliniciansStmt->execute();
@@ -221,20 +221,6 @@ $profilePicture = $user['profile_picture'] ?? null;
                             </div>
                         </div>
 
-                        <!-- Remarks Selection -->
-                        <div>
-                            <label for="remarksSelect" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                Select Remarks (from Progress Notes)
-                            </label>
-                            <select id="remarksSelect" name="remarks" 
-                                    class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-violet-500 dark:bg-gray-700 dark:text-white"
-                                    disabled>
-                                <option value="">-- Select a patient first --</option>
-                            </select>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                                <i class="ri-information-line"></i> Remarks are loaded from the patient's progress notes (Step 5).
-                            </p>
-                        </div>
 
                         <!-- Clinician Name (Dropdown) -->
                         <div>
@@ -246,12 +232,12 @@ $profilePicture = $user['profile_picture'] ?? null;
                                 <option value="">-- Select Clinician --</option>
                                 <?php foreach ($clinicians as $clinician): ?>
                                     <option value="<?php echo htmlspecialchars($clinician['full_name']); ?>"
-                                            <?php echo ($role === 'Clinician' && $clinician['full_name'] === $fullName) ? 'selected' : ''; ?>>
+                                            <?php echo (in_array($role, ['Clinician', 'Admin']) && $clinician['full_name'] === $fullName) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($clinician['full_name']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <?php if ($role === 'Clinician'): ?>
+                            <?php if (in_array($role, ['Clinician', 'Admin'])): ?>
                                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
                                     <i class="ri-information-line"></i> Your name is pre-selected. You can change it if needed.
                                 </p>
@@ -329,9 +315,6 @@ $profilePicture = $user['profile_picture'] ?? null;
                 
                 // Load treatment plans for selected patient
                 await loadTreatmentPlans(this.value);
-                
-                // Load remarks for selected patient
-                await loadRemarks(this.value);
             } else {
                 // Clear fields
                 document.getElementById('patientName').value = '';
@@ -340,11 +323,6 @@ $profilePicture = $user['profile_picture'] ?? null;
                 document.getElementById('procedureHint').value = '';
                 procedureSelect.disabled = true;
                 procedureSelect.innerHTML = '<option value="">-- Select a patient first --</option>';
-                
-                // Clear remarks dropdown
-                const remarksSelect = document.getElementById('remarksSelect');
-                remarksSelect.disabled = true;
-                remarksSelect.innerHTML = '<option value="">-- Select a patient first --</option>';
             }
         });
 
@@ -375,34 +353,6 @@ $profilePicture = $user['profile_picture'] ?? null;
             }
         }
 
-        // Load remarks via AJAX
-        async function loadRemarks(patientId) {
-            const remarksSelect = document.getElementById('remarksSelect');
-            
-            try {
-                const response = await fetch(`get_patient_remarks.php?patient_id=${patientId}`);
-                const data = await response.json();
-                
-                remarksSelect.innerHTML = '<option value="">-- No remark (optional) --</option>';
-                
-                if (data.success && data.remarks && data.remarks.length > 0) {
-                    data.remarks.forEach(remark => {
-                        const option = document.createElement('option');
-                        option.value = remark.remarks;
-                        option.textContent = remark.display;
-                        remarksSelect.appendChild(option);
-                    });
-                    remarksSelect.disabled = false;
-                } else {
-                    remarksSelect.innerHTML = '<option value="">No remarks found for this patient</option>';
-                    remarksSelect.disabled = false; // Allow empty submission
-                }
-            } catch (error) {
-                console.error('Error loading remarks:', error);
-                remarksSelect.innerHTML = '<option value="">Error loading remarks</option>';
-                remarksSelect.disabled = false; // Allow empty submission
-            }
-        }
 
         // Logout modal functions
         function showLogoutModal() {
